@@ -2,11 +2,13 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { dbService } from '$lib/services/db.service';
-  import { writable } from 'svelte/store';
   import { goto } from '$app/navigation';
+  import { Svg } from '$lib/index';
 
   import { entries, filteredEntries, selectedCategory, gridCols } from '$lib/stores/app.store';
   import { categories } from '$lib/stores/categories.store';
+  import { restoreAutoBackup } from '$lib/services/autoBackup.service';
+
   import CardGrid from './CardGrid.svelte';
   import SearchBar from './SearchBar.svelte';
   import FilterSheet from './FilterSheet.svelte';
@@ -16,6 +18,7 @@
   import CategoriesModal from './CategoriesModal.svelte';
   import Themes from './Themes.svelte';
   import SelectionToolbar from '$lib/components/SelectionToolbar.svelte';
+  import Alert from './Alert.svelte';
 
   let MainTitle = 'Lib';
   
@@ -33,6 +36,10 @@
 
   const dispatch = createEventDispatcher();
 
+  // Alert
+  let alertMessage = '';
+  let showAlert = false;
+
   // -----------------------------
   // Grid columns for CardGrid
   // -----------------------------
@@ -49,11 +56,13 @@
 
     // Only update categories store with unique, non-empty, non-'All' categories
     const cats = Array.from(new Set(allEntries.map(e => e.category).filter(c => c && c !== 'All')));
-    categories.set(cats);
+    categories.load();
   }
 
   onMount(async () => {
     await loadEntries();
+
+    restoreAutoBackup();
 
     // Restore last selected category from localStorage
     const savedCategory = localStorage.getItem('selectedCategory');
@@ -103,6 +112,18 @@
   // -----------------------------
   // Import / Export
   // -----------------------------
+
+  let alertTimer: number;
+  function showToast(message: string) {
+    alertMessage = message;
+    showAlert = true;
+
+    clearTimeout(alertTimer);
+    alertTimer = window.setTimeout(() => {
+      showAlert = false;
+    }, 1500);
+  }
+
   async function handleImport(jsonData: any[]) {
     await dbService.importFromJSON(jsonData);
     await loadEntries();
@@ -121,6 +142,24 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showDrawer = false;
+    showToast('Exported to JSON 👍 :Downloads/');
+  }
+
+  async function handleExportMd() {
+    const md = await dbService.exportToMarkdown();
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lib-export-${new Date().toISOString()}.md`;
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showDrawer = false;
+    showToast('Exported to Markdown 👍 :Downloads/');
   }
 
   // -----------------------------
@@ -199,9 +238,7 @@ UI Layout
   <div class="navbar bg-base-100 shadow-lg">
     <div class="flex-none">
       <button class="btn btn-square btn-ghost" aria-label="Open menu" on:click={() => showDrawer = true}>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+        {@html Svg.menu}
       </button>
     </div>
     <div class="flex-1"><span class="text-xl font-bold">{MainTitle} ({$entries.length})</span></div>
@@ -211,18 +248,14 @@ UI Layout
           showSearch = !showSearch;
           selectionMode = false;
           }} >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
+        {@html Svg.search}
       </button>
       <button class="btn btn-square btn-ghost" aria-label="Open filters" 
         on:click={() => { 
           showFilter = !showFilter;
           selectionMode = false;
           }} >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-        </svg>
+        {@html Svg.filter}
       </button>
       <button class="btn btn-square btn-ghost" 
         on:click={() => {
@@ -234,15 +267,11 @@ UI Layout
           selectionMode = !selectionMode; 
         }} 
         aria-label="Select entries">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/>
-        </svg>
+        {@html Svg.select}
       </button>
       <button
         class="btn btn-square btn-ghost inline-block md:hidden" on:click={toggleGridCols} aria-label="Toggle grid columns" title="Toggle grid columns">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-5 w-5 stroke-current">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z"/>
-        </svg>
+        {@html Svg.toggleGrid}
       </button>
       <!-- Bottom Themes button -->
       <Themes dropdownDirection="dropdown-bottom dropdown-end"/>
@@ -264,7 +293,7 @@ UI Layout
     {#each categoryList as cat}
       <button class="tab" class:tab-active={$selectedCategory === cat} on:click={() => selectedCategory.set(cat)} >
         <div class="indicator">
-          <span class="indicator-item bg-base-100 text-xs rounded-3xl px-1.5 py-0.5">{$entries.filter(e => e.category === cat).length}</span>
+          <span class="indicator-item bg-base-100 text-xs rounded-3xl px-1.5 py-0.5 -top-1">{$entries.filter(e => e.category === cat).length}</span>
           <div class="z-10">{cat}</div>
         </div>
       </button>
@@ -326,6 +355,7 @@ UI Layout
     bind:show={showDrawer}
     on:import={(e) => handleImport(e.detail)}
     on:export={handleExport}
+    on:exportMd={handleExportMd}
     on:showCategories={() => {
       showDrawer = false;
       showCategories = true;
@@ -348,3 +378,5 @@ UI Layout
 {#if showNewModal}
   <NewModal entryId={newEntryId} on:save={handleNewSave} on:cancel={handleNewCancel} />
 {/if}
+
+<Alert {showAlert} message={alertMessage} />

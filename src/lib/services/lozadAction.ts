@@ -1,4 +1,5 @@
-
+// src\lib\services\lozadAction.ts
+import lozad from 'lozad';
 export function lozadAction1(node: HTMLImageElement) {
   const observer = new IntersectionObserver(([entry], obs) => {
     if (entry.isIntersecting) {
@@ -22,7 +23,7 @@ export function lozadAction1(node: HTMLImageElement) {
 export function lozadAction2(node: HTMLImageElement) {
   node.classList.add('lozad-action'); // temporary class
   const observer = lozad('.lozad-action', {
-    loaded: (el) => el.classList.add('lozad-loaded')
+    loaded: (el : HTMLElement) => el.classList.add('lozad-loaded')
   });
 
   observer.observe();

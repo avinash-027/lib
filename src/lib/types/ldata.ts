@@ -1,3 +1,4 @@
+// src\lib\types\ldata.ts
 export interface Character {
   Name: string;
   Image: string;
@@ -6,7 +7,7 @@ export interface Character {
 export interface ChapterRow {
   ChapterSE: string;
   Description: string;
-  Tags: any[];
+  Tags: string[];        // real stored data
   Characters: string;
 }
 

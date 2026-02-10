@@ -1,13 +1,8 @@
-
-# sv
-
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
 ## Features
 
-- Pure PWA (no Capacitor, no Android dependencies)
+- PWA
 - Uses IndexedDB for storage (no SQLite, no sql.js, no SQLite)
-- Lazy loading of images with [lozad.js](https://github.com/ApoorvSaxena/lozad.js) (or [lazysizes](https://github.com/aFarkas/lazysizes))
+- Lazy loading of images with [lozad.js](https://github.com/ApoorvSaxena/lozad.js) (or [lazysizes](https://github.com/aFarkas/lazysizes)) 0r svelte laz
 - Import/Export functionality
 - Categories management (add/delete/list)
 

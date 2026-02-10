@@ -106,6 +106,28 @@
       timeStyle: 'short'
     });
   }
+
+  function chapterSort(a: string, b: string) {
+    const numA = parseFloat(a);
+    const numB = parseFloat(b);
+
+    const isNumA = !isNaN(numA);
+    const isNumB = !isNaN(numB);
+
+    // 1️⃣ numbers come before letters
+    if (isNumA && !isNumB) return -1;
+    if (!isNumA && isNumB) return 1;
+
+    // 2️⃣ both numbers → numeric sort
+    if (isNumA && isNumB) return numA - numB;
+
+    // 3️⃣ both strings → alphabetical sort
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+  $: sortedRows = (entry?.rows ?? []).slice().sort(
+    (a, b) => chapterSort(a.ChapterSE, b.ChapterSE)
+  );
+
 </script>
 
 <svelte:head>
@@ -200,7 +222,7 @@
                 <div class="badge badge-dash badge-sm md:badge-md" title="dataType">{entry.dataType}</div>
                 {/if}
                 {#if entry.rating}
-                <span class="text-xm badge badge-sm badge-ghost">
+                <span class="text-xm badge badge-sm badge-ghost gap-0">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="w-3 h-3 stroke-current fill-base-content"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.122 6.53a1 1 0 00.95.69h6.866c.969 0 1.371 1.24.588 1.81l-5.556 4.04a1 1 0 00-.364 1.118l2.122 6.53c.3.921-.755 1.688-1.54 1.118l-5.556-4.04a1 1 0 00-1.176 0l-5.556 4.04c-.784.57-1.838-.197-1.539-1.118l2.122-6.53a1 1 0 00-.364-1.118L.47 11.957c-.783-.57-.38-1.81.588-1.81h6.866a1 1 0 00.95-.69l2.122-6.53z"/></svg>
                   {RatingLevel[rating]}
                 </span>
@@ -301,7 +323,7 @@
         </div>
       {/if}
 
-      <!-- Chapters -->
+      <!-- Chapters Rows-->
       {#if entry.rows.length > 0}
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-3 md:p-6">
@@ -325,18 +347,18 @@
 
                 <!-- Rows -->
                 <div class="divide-y divide-base-300">
-                  {#each entry.rows as row}
+                  {#each sortedRows as row}
                     <div class="grid grid-cols-3 gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg">
                       <div class="font-semibold">{row.ChapterSE}</div>
                       <div>{row.Characters}</div>
                       <div>
-                        {#if Array.isArray(row.Tags) && row.Tags.length > 0}
-                          <div class="flex flex-wrap gap-1">
-                            {#each row.Tags as tag}
-                              <span class="badge badge-xs badge-outline">{tag}</span>
-                            {/each}
-                          </div>
-                        {/if}
+                      {#if row.Tags.length > 0}
+                        <div class="flex flex-wrap gap-1">
+                          {#each row.Tags as tag}
+                            <span class="bg-base-200 rounded-lg px-0.5">{tag}</span>
+                          {/each}
+                        </div>
+                      {/if}
                       </div>
                     </div>
 

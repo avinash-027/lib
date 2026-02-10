@@ -19,7 +19,15 @@
   let tags = '';
   let category = 'All';
   let characters: Character[] = [];
-  let rows: ChapterRow[] = [];
+
+  type EditableRow = {
+    ChapterSE: string;
+    Description: string;
+    Characters: string;
+    _tagsText: string;
+  };
+
+  let rows: EditableRow[] = [];
 
   onMount(async () => {
     if (entryId !== null) {
@@ -34,7 +42,11 @@
         tags = entry.tags.join(', ');
         category = entry.category;
         characters = [...entry.characters];
-        rows = [...entry.rows];
+        // Chapters
+        rows = entry.rows.map(r => ({
+          ...structuredClone(r),
+          _tagsText: r.Tags.join(', ')
+        }));
       }
     }
   });
@@ -48,7 +60,7 @@
   }
 
   function addChapter() {
-    rows = [...rows, { ChapterSE: '', Description: '', Tags: [], Characters: '' }];
+    rows = [...rows, { ChapterSE: '', Description: '', Characters: '', _tagsText: '' }];
   }
 
   function removeChapter(index: number) {
@@ -67,10 +79,17 @@
       openedAt: null,
       editedAt: null,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
-      characters: characters.filter((c) => c.Name),
-      rows: rows.filter((r) => r.ChapterSE),
       category: category || 'All', 
-      dataType: 'json'
+      dataType: 'json',
+      characters: characters.filter((c) => c.Name),
+      rows: rows
+        .filter(r => r.ChapterSE)
+        .map(r => ({
+          ChapterSE: r.ChapterSE,
+          Description: r.Description,
+          Characters: r.Characters,
+          Tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
+        }))
     };
 
     if (entryId !== null) {
@@ -136,7 +155,7 @@
             <span class="label-text">Badges</span>
             <span class="label-text-alt text-info italic">: Comma separated</span>
           </span>
-          <input id="newBadges" type="text" placeholder="Ex: Completed, Ongoing, Author, Artist, Favorite" class="input input-bordered w-full" bind:value={badges} />
+          <textarea id="newBadges" placeholder="Badges [Ex: Completed, Ongoing, Author, Artist, Favorite]" class="textarea textarea-bordered w-full" bind:value={badges}></textarea>
         </label>
       </div>
 
@@ -146,7 +165,8 @@
             <span class="label-text">Tags</span>
             <span class="label-text-alt text-info italic">: Comma separated</span>
           </span>
-          <input id="newTags" type="text" placeholder="Tags [Ex: Themes, Genres]" class="input input-bordered w-full" bind:value={tags} />
+          <textarea id="newTags" placeholder="Tags [Ex: Themes, Genres]" class="textarea textarea-bordered w-full" bind:value={tags}></textarea>
+
         </label>
       </div>
 
@@ -191,9 +211,13 @@
 
       <div class="space-y-2">
         {#each characters as character, i}
-          <div class="flex gap-2">
-            <input type="text" placeholder="Name" class="input input-bordered flex-1" bind:value={character.Name}/>
+          <div class="flex gap-2">            
+            <label class="floating-label w-full"><span>Name *</span>
+            <input type="text" placeholder="Name *" class="input input-bordered flex-1" bind:value={character.Name}/>
+            </label>
+            <label class="floating-label w-full"><span>Img URL</span>
             <input type="text" placeholder="Image URL" class="input input-bordered flex-1" bind:value={character.Image}/>
+            </label>
             <button class="btn btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -211,7 +235,7 @@
           <div class="card bg-base-200 p-4">
             <div class="flex gap-2 mb-2">
               <label class="floating-label w-full">
-              <span>*</span>
+              <span>Chapter *</span>
               <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.ChapterSE} />
             </label>
               <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>
@@ -220,23 +244,29 @@
                 </svg>
               </button>
             </div>
+            <label class="floating-label w-full"><span>Description</span>
             <textarea
               placeholder="Description"
               class="textarea textarea-bordered w-full textarea-sm mb-2"
               bind:value={row.Description}
             />
+            </label>
+            <label class="floating-label w-full"><span>Tags (comma separated)</span>
             <input
               type="text"
               placeholder="Tags (comma separated)"
               class="input input-bordered w-full input-sm mb-2"
               bind:value={row.Tags}
             />
+            </label>
+            <label class="floating-label w-full"><span>Characters</span>
             <input
               type="text"
               placeholder="Characters"
               class="input input-bordered w-full input-sm"
               bind:value={row.Characters}
             />
+            </label>
           </div>
         {/each}
         <button class="btn btn-outline btn-sm" on:click={addChapter}>+ Add Chapter</button>

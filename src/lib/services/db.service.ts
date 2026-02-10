@@ -23,12 +23,24 @@ interface Entry {
   dataType: string;
 }
 
+interface Category {
+  name: string;
+  createdAt: string;
+}
+
 interface MyDB extends DBSchema {
   entries: {
     key: number;
     value: Entry;
     indexes: {
       'by-category': string;
+    };
+  };
+  categories: {
+    key: string;
+    value: {
+      name: string;
+      createdAt: string;
     };
   };
 }
@@ -60,6 +72,9 @@ class DatabaseService {
           });
           store.createIndex('by-category', 'category');
         }
+          if (!db.objectStoreNames.contains('categories')) {
+            db.createObjectStore('categories', { keyPath: 'name' });
+          }
       }
     });
 
@@ -133,6 +148,34 @@ class DatabaseService {
         entry.characters.map((c) => c.Name).join(' ').toLowerCase().includes(lower)
       );
     });
+  }
+
+  async getAllCategories(): Promise<string[]> {
+    await this.ensureInitialized();
+    const tx = this.db!.transaction('categories', 'readonly');
+    const cats = await tx.objectStore('categories').getAll();
+    return ['All', ...cats.map(c => c.name).filter(c => c !== 'All')];
+  }
+
+  async addCategory(name: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!name || name === 'All') return;
+
+    const tx = this.db!.transaction('categories', 'readwrite');
+    await tx.objectStore('categories').put({
+      name,
+      createdAt: new Date().toISOString()
+    });
+    await tx.done;
+  }
+
+  async deleteCategory(name: string): Promise<void> {
+    await this.ensureInitialized();
+    if (name === 'All') return;
+
+    const tx = this.db!.transaction('categories', 'readwrite');
+    await tx.objectStore('categories').delete(name);
+    await tx.done;
   }
 
   // ----------------------------
@@ -267,6 +310,77 @@ class DatabaseService {
 
   async exportToJSON(): Promise<LData[]> {
     return this.getAllEntries();
+  }
+
+  async exportToMarkdown(): Promise<string> {
+    const entries = await this.getAllEntries();
+
+    const md: string[] = [];
+
+    md.push(`# Library Export`);
+    md.push(`_Exported on ${new Date().toLocaleString()}_`);
+    md.push(``);
+
+    for (const entry of entries) {
+      md.push(`---`);
+      md.push(`## ${entry.title}`);
+
+      if (entry.alternativeTitles?.length) {
+        md.push(`*(**AltTitles:** ${entry.alternativeTitles.join(', ')})*`);
+        md.push(``);
+      }
+
+      if (entry.rating != null) { md.push(`- ***Rating:** ${entry.rating}*`);}
+      if (entry.category) { md.push(`- ***Category:** #${entry.category}*`);}
+      if (entry.tags?.length) { md.push(`- ***Tags:** ${entry.tags.join(', ')}*`);}
+      if (entry.badges?.length) { md.push(`- ***Badges:** ${entry.badges.join(', ')}*`);}
+      
+      if (entry.description) {
+        md.push(entry.description);
+        md.push(``);}
+
+      // ---- Cover + Characters table ----
+      md.push(`|   Cover   | Cover Image |`);
+      md.push(`| :------: | :---------- |`);
+
+      if (entry.coverImageUrl) {
+        md.push(
+          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |`
+        );
+      } else {
+        md.push(`| Cover | — |`);}
+
+      // Characters
+      if (entry.characters?.length) {
+        md.push(`| Characters |  |`);
+
+        for (const char of entry.characters) {
+          md.push(
+            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> |`
+          );
+        }
+      } else {
+        md.push(`| Characters | — |`);}
+
+      md.push(``);
+
+      // ---- Chapter rows table (4 cols) ----
+      if (entry.rows?.length) {
+        md.push(`### Chapters`);
+        md.push(``);
+        md.push(`| Chapter | Description | Tags | Characters |`);
+        md.push(`| :-----: | ----------- | ---- | ---------- |`);
+
+        for (const row of entry.rows) {
+          md.push(
+            `| ${row.ChapterSE ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} | ${row.Characters ?? ''} |`
+          );}
+
+        md.push(``);
+      }
+    }
+
+    return md.join('\n');
   }
 
   // ----------------------------
