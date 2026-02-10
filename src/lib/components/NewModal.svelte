@@ -38,7 +38,7 @@
         coverImageUrl = entry.coverImageUrl || '';
         description = entry.description;
         badges = entry.badges.join(', ');
-        rating = entry.rating;
+        rating = Number(entry.rating);
         tags = entry.tags.join(', ');
         category = entry.category;
         characters = [...entry.characters];
@@ -60,7 +60,7 @@
   }
 
   function addChapter() {
-    rows = [...rows, { ChapterSE: '', Description: '', Characters: '', _tagsText: '' }];
+    rows = [...rows, { ChapterSE: '', Description: '', Characters: '',  _tagsText: '' }];
   }
 
   function removeChapter(index: number) {
@@ -249,14 +249,14 @@
               placeholder="Description"
               class="textarea textarea-bordered w-full textarea-sm mb-2"
               bind:value={row.Description}
-            />
+            ></textarea>
             </label>
             <label class="floating-label w-full"><span>Tags (comma separated)</span>
             <input
               type="text"
               placeholder="Tags (comma separated)"
               class="input input-bordered w-full input-sm mb-2"
-              bind:value={row.Tags}
+              bind:value={row._tagsText}
             />
             </label>
             <label class="floating-label w-full"><span>Characters</span>

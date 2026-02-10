@@ -14,3 +14,8 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;             /* Chrome, Safari, Opera */
 }
+
+/* Prevent touch scrolling while dragging */
+.drag-handle {
+  touch-action: none; /* prevent scrolling while dragging */
+}

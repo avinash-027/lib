@@ -323,6 +323,7 @@ class DatabaseService {
 
     for (const entry of entries) {
       md.push(`---`);
+      md.push(``);
       md.push(`## ${entry.title}`);
 
       if (entry.alternativeTitles?.length) {
@@ -366,14 +367,14 @@ class DatabaseService {
 
       // ---- Chapter rows table (4 cols) ----
       if (entry.rows?.length) {
-        md.push(`### Chapters`);
+        md.push(`**Chapters**`);
         md.push(``);
-        md.push(`| Chapter | Description | Tags | Characters |`);
-        md.push(`| :-----: | ----------- | ---- | ---------- |`);
+        md.push(`| Chapter | Characters  | Description | Tags |`);
+        md.push(`| :-----: | ----------- | ----------- |----- |`);
 
         for (const row of entry.rows) {
           md.push(
-            `| ${row.ChapterSE ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} | ${row.Characters ?? ''} |`
+            `| ${row.ChapterSE ?? ''} | ${row.Characters ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} |`
           );}
 
         md.push(``);

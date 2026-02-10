@@ -24,6 +24,7 @@
         message = 'Auto backup disabled';
       }
     } catch {
+			enabled = false; // force OFF if failed
       message = 'Backup permission denied';
     }
 

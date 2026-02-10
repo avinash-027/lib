@@ -14,7 +14,9 @@
   let entry: LData | null = null;
   let showEditModal = false;
   let entryId: number;
-
+	
+	let showImagePreview = false;
+	
   let rating = 0; // 0–10 scale
 
   // -----------------------------
@@ -176,6 +178,13 @@
       </button>
     </div>
   </div>
+	
+	{#if showImagePreview}
+		<div class="fixed inset-0 bg-base-100/1 backdrop-blur-[3px] flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
+			<img src={entry.coverImageUrl} alt={entry.title} class="max-h-full max-w-full rounded-lg shadow-2xl" on:click|stopPropagation />
+			<button class="absolute top-4 right-4 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
+		</div>
+	{/if}
 
   {#if entry}
     <div class="container mx-auto p-2 md:p-4 max-w-4xl space-y-2 md:space-y-6">
@@ -185,7 +194,8 @@
           <div class="flex flex-row md:flex-row gap-3 md:gap-5">
             <div class="flex-shrink-0">
               {#if entry.coverImageUrl}
-                <img src={entry.coverImageUrl} alt={entry.title} class="w-31 h-46 md:w-35 md:h-55 object-cover rounded-lg" />
+                <img src={entry.coverImageUrl} alt={entry.title} class="w-31 h-46 md:w-35 md:h-55 object-cover rounded-lg" 
+										on:click={() => (showImagePreview = true)}/>
               {:else}
                 <div class="w-34 h-50 bg-base-300 rounded-lg flex items-center justify-center text-base-content/20">
                   <svg

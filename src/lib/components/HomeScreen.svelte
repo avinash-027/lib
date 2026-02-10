@@ -230,6 +230,14 @@
   }
 </script>
 
+<style>
+  @media (max-width: 320px) {
+    .hide-on-320 {
+      display: none;
+    }
+  }
+</style>
+
 <!-- -----------------------------
 UI Layout
 ------------------------------ -->
@@ -241,7 +249,7 @@ UI Layout
         {@html Svg.menu}
       </button>
     </div>
-    <div class="flex-1"><span class="text-xl font-bold">{MainTitle} ({$entries.length})</span></div>
+    <div class="flex-1"><span class="text-md md:text-xl font-bold">{MainTitle} <span class="hide-on-320">({$entries.length})</span></span></div>
     <div class="flex-none">
       <button class="btn btn-square btn-ghost" aria-label="Toggle search"
         on:click={() => { 
@@ -250,6 +258,7 @@ UI Layout
           }} >
         {@html Svg.search}
       </button>
+      <div class="tooltip tooltip-bottom" data-tip="Open filters">
       <button class="btn btn-square btn-ghost" aria-label="Open filters" 
         on:click={() => { 
           showFilter = !showFilter;
@@ -257,6 +266,8 @@ UI Layout
           }} >
         {@html Svg.filter}
       </button>
+      </div>
+      <div class="tooltip tooltip-bottom" data-tip="Select entries">
       <button class="btn btn-square btn-ghost" 
         on:click={() => {
           if (selectionMode) {
@@ -269,6 +280,7 @@ UI Layout
         aria-label="Select entries">
         {@html Svg.select}
       </button>
+      </div>
       <button
         class="btn btn-square btn-ghost inline-block md:hidden" on:click={toggleGridCols} aria-label="Toggle grid columns" title="Toggle grid columns">
         {@html Svg.toggleGrid}

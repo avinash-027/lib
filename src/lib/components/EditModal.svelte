@@ -100,10 +100,7 @@
             ChapterSE: r.ChapterSE,
             Description: r.Description,
             Characters: r.Characters,
-            Tags: r._tagsText
-              .split(',')
-              .map(t => t.trim())
-              .filter(Boolean)
+            Tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
           }));
         break;
 
