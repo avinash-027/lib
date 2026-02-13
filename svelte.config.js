@@ -1,13 +1,15 @@
-// svelte.config.js
 import adapter from '@sveltejs/adapter-static';
 
-export default {
-  kit: {
-    adapter: adapter({
-      pages: 'build',
-      assets: 'build',
-      fallback: 'index.html', // SPA routing for unknown paths
-      precompress: true
-    })
-  }
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+	kit: {
+		adapter: adapter({
+			fallback: 'index.html'
+		}),
+		paths: {
+			base: process.argv.includes('dev') ? '' : "/lib"
+		}
+	}
 };
+
+export default config;

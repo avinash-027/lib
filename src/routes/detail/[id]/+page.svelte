@@ -1,5 +1,7 @@
 <!-- src\routes\detail\[id]\+page.svelte -->
 <script lang="ts">
+  import { base } from '$app/paths';
+
   import { marked } from 'marked';
 	import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -153,11 +155,13 @@
   <!-- Navbar -->
   <div class="sticky top-0 z-50 navbar bg-base-100 shadow-lg">
     <div class="flex-none">
-      <button class="btn btn-square btn-ghost" aria-label="Go back" on:click={goBack}>
+      <!-- <a href="{base}/" class="btn btn-ghost">🏠</a> -->
+      <!-- <a class="btn btn-square btn-ghost" aria-label="Go back" on:click={goBack}> -->
+      <a href="{base}/" class="btn btn-square btn-ghost" aria-label="Go back">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
-      </button>
+      </a>
     </div>
     <div class="flex-1">
       <span class="text-xl font-bold">Details</span>

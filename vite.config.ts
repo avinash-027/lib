@@ -16,17 +16,18 @@ export default defineConfig({
       manifest: {
         name: 'Lib',
         short_name: 'content-lib',
-        description: 'A description of your app',
-        start_url: '/',
+        description: 'A modern library management app built with SvelteKit, IndexedDB, and DaisyUI. Track your manhwa, manga, novels, and more with rich metadata, offline support, and powerful search capabilities.',
+        start_url: '/lib/',
+        scope: '/lib/',
         display: 'standalone',
         icons: [
           {
-            src: '/img192.png',
+            src: '/lib/img192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/img512.png',
+            src: '/lib/img512.png',
             sizes: '512x512',
             type: 'image/png',
           },

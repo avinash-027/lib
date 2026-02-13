@@ -28,10 +28,15 @@ Track your **manhwa, manga, novels, and more** with rich metadata, offline suppo
 * **Data & Storage:** IndexedDB (Local database), Dexie (IndexedDB wrapper)
 * **Utilities & Tooling:** Marked (Markdown rendering), Lozad (Lazy loading), gh-pages (GitHub Pages deployment), @sveltejs/adapter-static (Static hosting adapter)
 
-<details> <summary>Note</summary>
+<details> <summary>🌟Note</summary>
 <p>
 
-There are still errors and warnings: Check Via `npm run check` & `npm run build`
+- There are still errors and warnings: Check Via `npm run check` & `npm run build`
+- [How to use GitHub Pages with Sveltekit? :/stackoverflow](https://stackoverflow.com/questions/75796127/how-to-use-github-pages-with-sveltekit)
+- Create a blank file named .nojekyll in your static folder (or the root of **your deployment branch**).
+- `svelte.config.js` : `paths: { base: process.argv.includes('dev') ? '' : "/REPO-NAME" }`
+- Main for routes: `import { base } from '$app/paths';` [:/stackoverflow](https://stackoverflow.com/a/77348449)
+- [GitHub Pages :/svelte.dev](https://kit.svelte.dev/docs/adapter-static#github-pages) 
 
 </p>
 </details>
