@@ -1,5 +1,7 @@
 <!-- src\routes\detail\[id]\+page.svelte -->
 <script lang="ts">
+  import { base } from '$app/paths';
+
   import { marked } from 'marked';
 	import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -153,11 +155,13 @@
   <!-- Navbar -->
   <div class="sticky top-0 z-50 navbar bg-base-100 shadow-lg">
     <div class="flex-none">
-      <button class="btn btn-square btn-ghost" aria-label="Go back" on:click={goBack}>
+      <!-- <a href="{base}/" class="btn btn-ghost">🏠</a> -->
+      <!-- <a class="btn btn-square btn-ghost" aria-label="Go back" on:click={goBack}> -->
+      <a href="{base}/" class="btn btn-square btn-ghost" aria-label="Go back">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
-      </button>
+      </a>
     </div>
     <div class="flex-1">
       <span class="text-xl font-bold">Details</span>
@@ -180,9 +184,9 @@
   </div>
 	
 	{#if showImagePreview}
-		<div class="fixed inset-0 bg-base-100/1 backdrop-blur-[3px] flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
+		<div class="fixed inset-0 bg-base-100/69 flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
 			<img src={entry.coverImageUrl} alt={entry.title} class="max-h-full max-w-full rounded-lg shadow-2xl" on:click|stopPropagation />
-			<button class="absolute top-4 right-4 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
+			<button class="absolute bottom-5 right-5 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
 		</div>
 	{/if}
 

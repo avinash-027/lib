@@ -1,5 +1,7 @@
 <!-- src\lib\components\CardGrid.svelte -->
 <script lang="ts">
+  import { base } from '$app/paths';
+
   import type { LData } from '$lib/types/ldata';
   import { createEventDispatcher } from 'svelte';
   import { lozadAction1 } from '$lib/services/lozadAction';
@@ -19,7 +21,8 @@
   // dispatch('cardClick', id);
   function handleCardClick(id: number | undefined) {
     if (!selectionMode && id !== undefined) {
-      goto(`/detail/${id}`);
+      // Use the base path prefix here
+      goto(`${base}/detail/${id}`);
     }
   }
 
