@@ -2,6 +2,10 @@
 export interface Character {
   Name: string;
   Image: string;
+  role: string;
+  alternativeNames: string[];
+  tags: string[];
+  description: string;
 }
 
 export interface ChapterRow {
@@ -26,7 +30,7 @@ export interface LData {
   characters: Character[];
   rows: ChapterRow[];
   category: string;
-  dataType: 'json';
+  dataType: string;
 }
 
 export type SortField = 'title' | 'editedAt' | 'createdAt' | 'openedAt';

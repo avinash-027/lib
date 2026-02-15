@@ -22,11 +22,49 @@
   let tags = '';
   let category = 'All';
 
-  let characters: Character[] = [];
+  type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
+  let characters: EditableCharacter[] = [];
 
   // UI rows with editable tag string
   type EditableRow = ChapterRow & { _tagsText: string };
   let rows: EditableRow[] = [];
+
+  // -----------------------------
+  // Sorted characters (based on editable characters)
+  const mainRoles = ['main', 'lead', 'mc', 'fmc', 'protagonist'];
+
+  $: sortedCharacters = [...characters].sort((a, b) => {
+    const aPriority = mainRoles.includes((a.role ?? '').toLowerCase()) ? 0 : 1;
+    const bPriority = mainRoles.includes((b.role ?? '').toLowerCase()) ? 0 : 1;
+    return aPriority - bPriority;
+  });
+
+  // -----------------------------
+  // Sorted rows (based on editable rows)
+  function chapterSort(a: string, b: string) {
+    // 🟢 1. Always push empty chapters to bottom
+    if (!a?.trim()) return 1;
+    if (!b?.trim()) return -1;
+
+    const numA = parseFloat(a);
+    const numB = parseFloat(b);
+
+    const isNumA = !isNaN(numA);
+    const isNumB = !isNaN(numB);
+
+    // numbers before letters
+    if (isNumA && !isNumB) return -1;
+    if (!isNumA && isNumB) return 1;
+
+    // both numbers
+    if (isNumA && isNumB) return numA - numB;
+
+    // both strings
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+  $: sortedRows = [...rows].sort((a, b) =>
+    chapterSort(a.ChapterSE, b.ChapterSE)
+  );
 
   onMount(async () => {
     if (!entryId) return;
@@ -44,7 +82,11 @@
     category = entry.category;
 
     // Characters
-    characters = [...entry.characters];
+    characters = entry.characters.map(c => ({
+      ...c,
+      _alternativeNamesString: (c.alternativeNames ?? []).join(', '),
+      _tagsString: (c.tags ?? []).join(', ')
+    }));
 
     // Chapters
     rows = entry.rows.map(r => ({
@@ -54,9 +96,11 @@
   });
 
   function addCharacter() {
-    characters = [...characters, { Name: '', Image: '' }];
+    characters = [
+      ...characters,
+      { Name: '', Image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
+    ];
   }
-
   function removeCharacter(index: number) {
     characters = characters.filter((_, i) => i !== index);
   }
@@ -64,16 +108,9 @@
   function addChapter() {
     rows = [
       ...rows,
-      {
-        ChapterSE: '',
-        Description: '',
-        Characters: '',
-        Tags: [],
-        _tagsText: ''
-      }
+      { ChapterSE: '', Description: '', Characters: '', Tags: [], _tagsText: ''}
     ];
   }
-
   function removeChapter(i: number) {
     rows = rows.filter((_, idx) => idx !== i);
   }
@@ -93,7 +130,14 @@
         updateData.rating = rating;
         updateData.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
         updateData.category = category || 'All';
-        updateData.characters = characters.filter(c => c.Name);
+        updateData.characters = characters.map(c => ({
+          Name: c.Name,
+          Image: c.Image,
+          role: c.role,
+          description: c.description,
+          alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
+          tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        }));
         updateData.rows = rows
           .filter(r => r.ChapterSE)
           .map(r => ({
@@ -105,7 +149,14 @@
         break;
 
       case 'characters':
-        updateData.characters = characters.filter(c => c.Name);
+        updateData.characters = characters.map(c => ({
+          Name: c.Name,
+          Image: c.Image,
+          role: c.role,
+          description: c.description,
+          alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
+          tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        }));
         break;
 
       case 'chapters':
@@ -135,7 +186,6 @@
     await dbService.updateEntryPartial(entryId, updateData);
     dispatch('save');
   }
-
   function handleCancel() {
     dispatch('cancel');
   }
@@ -144,9 +194,8 @@
 <!-- Modal -->
 <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="presentation">
   <button class="absolute inset-0 bg-transparent" on:click={handleCancel} aria-label="Close"></button>
-  <div
-    class="bg-base-100 w-full max-w-4xl max-h-[90vh] overflow-auto rounded-lg shadow-xl relative z-10" 
-    role="dialog" tabindex="-1" >
+  <div role="dialog" tabindex="-1" 
+    class="bg-base-100 w-full max-w-4xl max-h-[92vh] md:max-h-[90vh] overflow-auto rounded-lg shadow-xl relative z-10">
     <div class="bg-base-100 border-b border-base-300 p-4 flex justify-between items-center">
       <h2 class="text-2xl font-bold">
         Edit <span class="text-info">{editSection}</span>
@@ -158,7 +207,7 @@
       </button>
     </div>
 
-    <div class="p-6 space-y-4">
+    <div class="p-2 md:p-6 space-y-4">
 
       {#if  editSection === 'All'}
         <div class="form-control">
@@ -255,34 +304,64 @@
 
       {#if editSection === 'All' ||  editSection === 'characters'}
         {#if editSection === 'All'}<div class="divider">Characters</div>{/if}
-        <div class="space-y-2">
-          {#each characters as character, i}
-            <div class="flex gap-2">
-              <label class="floating-label" for="charName">
-                <span>
-                  <span class="label-text">Name **</span>
-                </span>
-                <input type="text" id="charName" placeholder="Name" class="input input-md w-full" bind:value={character.Name} />
-              </label>
-              <label class="floating-label" for="charImgUrl">
+        <div class="flex flex-col max-h-[440px] md:max-h-full">
+        <!-- Scrollable list -->
+        <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
+          {#each sortedCharacters as character, i}
+            <div class="flex gap-2 flex-wrap mb-2 p-2 rounded-lg border border-base-300 bg-base-200">
+              <div class="flex gap-2 w-full">
+                <label class="floating-label w-full" for="charName">
+                  <span><span class="label-text">Name **</span></span>
+                  <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.Name} />
+                </label>
+                <label class="floating-label w-full" for="charRole">
+                  <span><span class="label-text">Role</span></span>
+                  <input type="text" id="charRole" placeholder="role" class="input input-sm w-full" bind:value={character.role} />
+                </label>
+                <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>✕</button>
+              </div>
+              <label class="floating-label w-full" for="charImgUrl">
                 <span>
                   <span class="label-text">Image URL</span>
                 </span>
-                <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-md w-full" bind:value={character.Image} />
+                <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.Image} />
               </label>
-              <button class="btn btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>✕</button>
+              <details class="w-full">
+                <summary class="cursor-pointer text-sm font-medium text-primary my-1 text-center">Extra Details</summary>
+                <div class="space-y-2 mt-2">
+                  <label class="floating-label w-full" for="charAltNames">
+                    <span>
+                      <span class="label-text">alternativeNames</span>
+                      <span class="label-text-alt text-info italic">: Comma separated</span>
+                    </span>
+                    <input id="charAltNames" placeholder="Alternative Names [Ex: Name01, name-01]" class="input input-sm w-full" bind:value={character._alternativeNamesString} />
+                  </label>
+                  <label class="floating-label w-full" for="charTags">
+                    <span>
+                      <span class="label-text">char-Tags</span>
+                      <span class="label-text-alt text-info italic">: Comma separated</span>
+                    </span>
+                    <input id="charTags" placeholder="Tags [Ex: Hero, Villain]" class="input input-sm w-full" bind:value={character._tagsString} />
+                  </label>
+                  <label class="floating-label w-full" for="charDescription">
+                    <span class="label-text">Description</span>
+                    <textarea id="charDescription" placeholder="Description" class="textarea textarea-bordered w-full" bind:value={character.description} ></textarea>
+                  </label>
+                </div>
+              </details>
             </div>
           {/each}
-          <button class="btn btn-outline btn-sm" on:click={addCharacter}>+ Add Character</button>
+        </div>
         </div>
       {/if}
 
-      {#if editSection === 'All' ||  editSection === 'chapters'}
+      {#if editSection === 'All' || editSection === 'chapters'}
         {#if editSection === 'All'}<div class="divider">Chapters</div>{/if}
-
-        <div class="space-y-2">
-          {#each rows as row, i}
-            <div class="card bg-base-200 p-4">
+        <div class="flex flex-col max-h-[440px] md:max-h-full">
+        <!-- Scrollable list -->
+        <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
+          {#each sortedRows as row, i}
+            <div class="card border border-base-300 bg-base-200 p-4">
               <div class="flex gap-2 mb-2">
                 <label class="floating-label w-full"><span>Chapter **</span>
                 <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.ChapterSE}/>
@@ -304,15 +383,28 @@
               </label>
             </div>
           {/each}
-          <button class="btn btn-outline btn-sm" on:click={addChapter}>+ Add Chapter</button>
+        </div>
         </div>
       {/if}
     </div>
 
-    <div class="sticky bottom-0 bg-base-100 border-t border-base-300 p-4 flex gap-2 justify-end">
-      <button class="btn btn-outline" on:click={handleCancel}>Cancel</button>
-      <button class="btn btn-primary" on:click={handleSave} disabled={editSection === 'All' && (!title || !category)}>
-      Save</button>
+    <!-- Buttons -->
+    <div class="sticky bottom-0 bg-base-100 border-t border-base-300 p-4 flex gap-2 justify-between z-10">
+      <!-- Left side add buttons -->
+      <div class="flex gap-2">
+        {#if editSection === 'All' || editSection === 'characters'}
+          <button class="btn btn-outline btn-sm" on:click={addCharacter}>+ Character </button>
+        {/if}
+
+        {#if editSection === 'All' || editSection === 'chapters'}
+          <button class="btn btn-outline btn-sm" on:click={addChapter}>+ Chapter </button>
+        {/if}
+      </div>
+      <!-- Right side actions -->
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm text-error" on:click={handleCancel}>Cancel</button>
+        <button class="btn btn-primary btn-sm" on:click={handleSave} disabled={editSection === 'All' && (!title || !category)}>Save </button>
+      </div>
     </div>
   </div>
 </div>

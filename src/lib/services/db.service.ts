@@ -43,15 +43,40 @@ interface MyDB extends DBSchema {
       createdAt: string;
     };
   };
+  settings: {
+    key: string;
+    value: any;
+  };
 }
 
 export function entryFingerprint(entry: Partial<LData>) {
-  return [
-    (entry.title ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-    (entry.alternativeTitles?.join(' ') ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-    (entry.coverImageUrl ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
-  ].join('|');
+  const clean = (str: string) => 
+    (str ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const mainTitle = clean(entry.title ?? '');
+
+  // IF dataType is md, we include alt-titles in the fingerprint for stricter matching
+  // if (entry.dataType.toLowerCase() === 'md') {
+  //   const altTitles = Array.from(new Set((entry.alternativeTitles ?? []).map(clean)))
+  //     .sort()
+  //     .join('|');
+  //   return `${mainTitle}::${altTitles}`;
+  // }
+
+  // Default / jsonDb: Only match on the cleaned main title
+  return mainTitle;
 }
+
+// export function entryFingerprint(entry: Partial<LData>) {
+//   return [
+//     (entry.title ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+//     (entry.description ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+//     (entry.alternativeTitles?.join(' ') ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+//     (entry.coverImageUrl ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+//     (entry.characters?.map((c) => c.Name).join(' ').toLowerCase()),
+//     (entry.rows?.map((c) => c.ChapterSE).join(' ').toLowerCase()),
+//   ].join('|');
+// }
 
 class DatabaseService {
   private db: IDBPDatabase<MyDB> | null = null;
@@ -72,27 +97,32 @@ class DatabaseService {
           });
           store.createIndex('by-category', 'category');
         }
-          if (!db.objectStoreNames.contains('categories')) {
-            db.createObjectStore('categories', { keyPath: 'name' });
-          }
+        if (!db.objectStoreNames.contains('categories')) {
+          db.createObjectStore('categories', { keyPath: 'name' });
+        }
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings');
+        }
       }
     });
 
     this.isInitialized = true;
   }
-
   private async ensureInitialized(): Promise<void> {
     if (this.isInitialized) return;
-
     if (!this.initPromise) {
       this.initPromise = this.initialize();
     }
-
     await this.initPromise;
+  }
+  /** Expose DB for services like auto-backup */
+  async getDB(): Promise<IDBPDatabase<MyDB>> {
+    await this.ensureInitialized();
+    return this.db!;
   }
 
   // ----------------------------
-  // Queries
+  // Entries - Queries
   // ----------------------------
 
   async getAllEntries(): Promise<LData[]> {
@@ -105,7 +135,6 @@ class DatabaseService {
     all.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
     return all.map(this.rowToLData);
   }
-
   async getEntriesByCategory(category: string): Promise<LData[]> {
     await this.ensureInitialized();
 
@@ -120,7 +149,6 @@ class DatabaseService {
     rows.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
     return rows.map(this.rowToLData);
   }
-
   async getEntryById(id: number): Promise<LData | null> {
     await this.ensureInitialized();
 
@@ -140,7 +168,6 @@ class DatabaseService {
       if (!searchAlt) {
         return entry.title.toLowerCase().includes(lower);
       }
-
       return (
         entry.alternativeTitles.join(' ').toLowerCase().includes(lower) ||
         entry.tags.join(' ').toLowerCase().includes(lower) ||
@@ -150,6 +177,9 @@ class DatabaseService {
     });
   }
 
+  // ----------------------------
+  // Category -Queries
+  // ----------------------------
   async getAllCategories(): Promise<string[]> {
     await this.ensureInitialized();
     const tx = this.db!.transaction('categories', 'readonly');
@@ -168,7 +198,6 @@ class DatabaseService {
     });
     await tx.done;
   }
-
   async deleteCategory(name: string): Promise<void> {
     await this.ensureInitialized();
     if (name === 'All') return;
@@ -178,8 +207,22 @@ class DatabaseService {
     await tx.done;
   }
 
+  private async ensureCategoryExists(category: string | undefined | null) {
+    if (!category || category === 'All') return;
+
+    await this.ensureInitialized();
+
+    const tx = this.db!.transaction('categories', 'readonly');
+    const existing = await tx.objectStore('categories').get(category);
+    await tx.done;
+
+    if (!existing) {
+      await this.addCategory(category);
+    }
+  }
+
   // ----------------------------
-  // Mutations
+  // Entry,Category -Mutations
   // ----------------------------
 
   async addEntry(entry: Omit<LData, 'id'>): Promise<number> {
@@ -193,7 +236,7 @@ class DatabaseService {
       createdAt: now,
       openedAt: null,
       editedAt: null,
-      dataType: 'json'
+      dataType: entry.dataType ?? 'json'
     };
 
     const tx = this.db!.transaction('entries', 'readwrite');
@@ -202,7 +245,6 @@ class DatabaseService {
 
     return id as number;
   }
-
   async updateEntry(id: number, entry: Partial<LData>): Promise<void> {
     await this.ensureInitialized();
 
@@ -223,7 +265,6 @@ class DatabaseService {
     await store.put(updated);
     await tx.done;
   }
-
   async updateEntryPartial(id: number, data: Partial<LData>) {
     const entry = await this.getEntryById(id);
     if (!entry) return;
@@ -231,7 +272,6 @@ class DatabaseService {
     const updated = { ...entry, ...data, editedAt: new Date().toISOString() };
     await this.updateEntry(id, updated);
   }
-
   async markAsOpened(id: number): Promise<void> {
     await this.ensureInitialized();
 
@@ -246,7 +286,6 @@ class DatabaseService {
     await store.put(entry);
     await tx.done;
   }
-
   async deleteEntry(id: number): Promise<void> {
     await this.ensureInitialized();
 
@@ -272,7 +311,6 @@ class DatabaseService {
     }
     await tx.done;
   }
-
   async renameCategory(oldName: string, newName: string) {
     const entries = await this.getAllEntries();
 
@@ -287,31 +325,210 @@ class DatabaseService {
   // Import / Export
   // ----------------------------
 
+  // ----------------------------
   // Imported IDs are explicitly discarded. IndexedDB generates new IDs, Navigation IDs are guaranteed unique. 
+  // The new entry is silently skipped during import. No duplicate is created. The existing entry is not modified.
+
+  // async importFromJSON(entries: LData[]): Promise<void> {
+  //   await this.ensureInitialized();
+
+  //   const existing = await this.getAllEntries();
+  //   const existingFingerprints = new Set(
+  //     existing.map(entryFingerprint)
+  //   );
+
+  //   for (const entry of entries) {
+  //     const fp = entryFingerprint(entry);
+
+  //     // Skip exact duplicates
+  //     if (existingFingerprints.has(fp)) continue;
+
+  //     const { id, ...withoutId } = entry;
+  //     await this.addEntry(withoutId);
+  //     existingFingerprints.add(fp);
+  //   }
+  // }
+
+  // ----------------------------
+  // If fingerprint matches → update existing entry (keep its id). If no match → insert as new
+  // async importFromJSON(entries: LData[]): Promise<void> {
+  //   await this.ensureInitialized();
+
+  //   const existing = await this.getAllEntries();
+
+  //   // Map fingerprint → existing entry
+  //   const fingerprintMap = new Map<string, LData>();
+
+  //   for (const entry of existing) {
+  //     fingerprintMap.set(entryFingerprint(entry), entry);
+  //   }
+
+  //   for (const entry of entries) {
+  //     const fp = entryFingerprint(entry);
+
+  //     if (fingerprintMap.has(fp)) {
+  //       // Update existing entry (preserve id + createdAt)
+  //       const existingEntry = fingerprintMap.get(fp)!;
+
+  //       const { id, ...rest } = entry;
+
+  //       await this.updateEntry(existingEntry.id!, {
+  //         ...rest
+  //       });
+
+  //     } else {
+  //       // Add as new
+  //       const { id, ...withoutId } = entry;
+  //       const newId = await this.addEntry(withoutId);
+
+  //       // update map so duplicates inside same import also overwrite correctly
+  //       fingerprintMap.set(fp, { ...entry, id: newId });
+  //     }
+  //   }
+  // }
+
   async importFromJSON(entries: LData[]): Promise<void> {
+    // console.log("🚀 IMPORT START");
+
     await this.ensureInitialized();
 
-    const existing = await this.getAllEntries();
-    const existingFingerprints = new Set(
-      existing.map(entryFingerprint)
-    );
+    const existingEntries = await this.getAllEntries();
+    // Load existing categories once
+    const existingCategories = new Set(await this.getAllCategories());
 
-    for (const entry of entries) {
-      const fp = entryFingerprint(entry);
+    // console.log("📚 Existing entries loaded:", existingEntries.length);
 
-      // Skip exact duplicates
-      if (existingFingerprints.has(fp)) continue;
-
-      const { id, ...withoutId } = entry;
-      await this.addEntry(withoutId);
-      existingFingerprints.add(fp);
+    // Map fingerprint → existing entry
+    const fingerprintMap = new Map<string, LData>();
+    for (const e of existingEntries) {
+      const fp = entryFingerprint(e);
+      fingerprintMap.set(fp, e);
     }
-  }
 
+    for (const incoming of entries) {
+      // console.log("--------------------------------------------------");
+      // console.log("📥 Processing incoming entry:", incoming.title);
+
+      // Ensure category exists (optimized)
+      if (
+        incoming.category &&
+        incoming.category !== 'All' &&
+        !existingCategories.has(incoming.category)
+      ) {
+        await this.addCategory(incoming.category);
+        existingCategories.add(incoming.category); // prevent duplicate adds
+      }
+      // existingCategories Set + addCategory already ensures new categories are created.
+      // await this.ensureCategoryExists(incoming.category);
+
+      const fp = entryFingerprint(incoming);
+      // console.log("🔑 Generated fingerprint:", fp);
+      const existing = fingerprintMap.get(fp);
+      // console.log("🔍 Existing match found?", !!existing);
+
+      if (!existing) {
+        // console.log("🟢 NO MATCH → Adding as new entry");
+
+        // NO MATCH: Add as new
+        const { id, ...withoutId } = incoming;
+        // console.log("➖ Removed incoming ID:", id);
+        const newId = await this.addEntry({ 
+          ...withoutId, 
+          dataType: incoming.dataType || 'Lib' 
+        });
+
+        // console.log("✅ Added new entry with ID:", newId);
+        
+        // Update map so subsequent items in the same import 
+        // that share a fingerprint don't create duplicates
+        fingerprintMap.set(fp, { ...incoming, id: newId });
+        // console.log("🗺️ Fingerprint map updated with new entry");
+        continue;
+      }
+
+      // console.log("🟡 MATCH FOUND → Existing ID:", existing.id);
+      const incomingType = incoming.dataType?.toLowerCase();
+      const existingType = existing.dataType?.toLowerCase();
+
+      // MATCH EXISTS logic
+      const isIncomingMd = incomingType === 'md';
+      const descMatches = existing.description === incoming.description;
+
+      // console.log("📄 Incoming dataType:", incomingType);
+      // console.log("📝 Description matches?", descMatches);
+      // console.log("📦 Existing dataType:", existingType);
+
+      // ARCHIVE CONDITION: MD import with changes
+      // If manual notes (MD) changed, we archive the old one to prevent loss.
+      if (isIncomingMd && !descMatches && existingType !== 'archive') {
+        // console.log("🗄️ ARCHIVE CONDITION TRIGGERED");
+
+        await this.updateEntry(existing.id!, { dataType: 'archive' });
+        // console.log("📦 Existing entry archived (ID:", existing.id, ")");
+
+        const { id, ...withoutId } = incoming;
+        // console.log("➕ Creating new Lib entry from modified MD import");
+
+        await this.addEntry({ ...withoutId, dataType: 'Lib' });
+        // console.log("✅ New Lib entry added");
+      } 
+      else {
+        // console.log("🔄 UPDATE & MERGE PATH");
+
+        // UPDATE & MERGE (Priority: jsonDb or unchanged MD)
+        
+        // 1. Tags Merge
+        const mergedTags = Array.from(
+          new Set([...(existing.tags || []), ...(incoming.tags || [])])
+        );
+        // console.log("🏷️ Merged Tags:", mergedTags);
+
+        // 2. Characters Merge (by Name)
+        const charMap = new Map();
+        // Existing chars go in first, incoming chars overwrite them if Name matches
+        [...(existing.characters || []), ...(incoming.characters || [])].forEach(c => {
+          if (c.Name) charMap.set(c.Name, c);
+        });
+        // console.log("👥 Merged Characters count:", charMap.size);
+
+        // 3. Rows Merge (by ChapterSE)
+        const rowMap = new Map();
+        [...(existing.rows || []), ...(incoming.rows || [])].forEach(r => {
+          if (r.ChapterSE) rowMap.set(r.ChapterSE, r);
+        });
+        // console.log("📑 Merged Rows count:", rowMap.size);
+
+        // Determine final dataType: 
+        // If it was Archived but we get a fresh JSON update, bring it back to Lib
+        const finalType = (existingType === 'archive' && !isIncomingMd) 
+          ? 'Lib' 
+          : incoming.dataType;
+
+        // console.log("📌 Final dataType will be:", finalType);
+
+        await this.updateEntry(existing.id!, {
+          description: incoming.description?.trim()
+              ? incoming.description.trim()
+              : (existing.description ?? ''),
+          rating: incoming.rating ? incoming.rating : (existing.rating ?? null),
+          badges: incoming.badges,
+          coverImageUrl: incoming.coverImageUrl || existing.coverImageUrl,
+          tags: mergedTags,
+          characters: Array.from(charMap.values()),
+          rows: Array.from(rowMap.values()),
+          dataType: finalType,
+          category: incoming.category || existing.category || 'All',
+          editedAt: new Date().toISOString()
+        });
+
+        // console.log("✅ Entry updated (ID:", existing.id, ")");
+      }
+    }
+    console.log("🏁 IMPORT COMPLETE");
+  }
   async exportToJSON(): Promise<LData[]> {
     return this.getAllEntries();
   }
-
   async exportToMarkdown(): Promise<string> {
     const entries = await this.getAllEntries();
 
@@ -331,37 +548,39 @@ class DatabaseService {
         md.push(``);
       }
 
-      if (entry.rating != null) { md.push(`- ***Rating:** ${entry.rating}*`);}
-      if (entry.category) { md.push(`- ***Category:** #${entry.category}*`);}
-      if (entry.tags?.length) { md.push(`- ***Tags:** ${entry.tags.join(', ')}*`);}
-      if (entry.badges?.length) { md.push(`- ***Badges:** ${entry.badges.join(', ')}*`);}
+      if (entry.rating != null) { md.push(`- **Rating:** ${entry.rating}*`);}
+      if (entry.category) { md.push(`- **Category:** #${entry.category}`);}
+      if (entry.tags?.length) { md.push(`- **Tags:** ${entry.tags.join(', ')}`);}
+      if (entry.badges?.length) { md.push(`- **Badges:** ${entry.badges.join(', ')}`);}
       
       if (entry.description) {
         md.push(entry.description);
         md.push(``);}
 
       // ---- Cover + Characters table ----
+
+      md.push(``);
       md.push(`|   Cover   | Cover Image |`);
       md.push(`| :------: | :---------- |`);
 
       if (entry.coverImageUrl) {
         md.push(
-          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |`
+          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |  |`
         );
       } else {
-        md.push(`| Cover | — |`);}
+        md.push(`| Cover | — |  |`);}
 
       // Characters
       if (entry.characters?.length) {
-        md.push(`| Characters |  |`);
+        md.push(`| Characters |  | role |tags| alternativeNames|`);
 
         for (const char of entry.characters) {
           md.push(
-            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> |`
+            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
           );
         }
       } else {
-        md.push(`| Characters | — |`);}
+        md.push(`| Characters | — |  |`);}
 
       md.push(``);
 
@@ -404,9 +623,10 @@ class DatabaseService {
       characters: row.characters ?? [],
       rows: row.rows ?? [],
       category: row.category,
-      dataType: 'json'
+      dataType: row.dataType
     };
   }
+
 }
 
 // Export singleton instance of database service

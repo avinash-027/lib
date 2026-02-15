@@ -18,7 +18,9 @@
   let rating= 0;
   let tags = '';
   let category = 'All';
-  let characters: Character[] = [];
+
+  type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
+  let characters: EditableCharacter[] = [];
 
   type EditableRow = {
     ChapterSE: string;
@@ -26,7 +28,6 @@
     Characters: string;
     _tagsText: string;
   };
-
   let rows: EditableRow[] = [];
 
   onMount(async () => {
@@ -41,7 +42,12 @@
         rating = Number(entry.rating);
         tags = entry.tags.join(', ');
         category = entry.category;
-        characters = [...entry.characters];
+        // Characters
+        characters = entry.characters.map(c => ({
+          ...c,
+          _alternativeNamesString: (c.alternativeNames ?? []).join(', '),
+          _tagsString: (c.tags ?? []).join(', ')
+        }));
         // Chapters
         rows = entry.rows.map(r => ({
           ...structuredClone(r),
@@ -52,9 +58,11 @@
   });
 
   function addCharacter() {
-    characters = [...characters, { Name: '', Image: '' }];
+    characters = [
+      ...characters,
+      { Name: '', Image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
+    ];
   }
-
   function removeCharacter(index: number) {
     characters = characters.filter((_, i) => i !== index);
   }
@@ -62,7 +70,6 @@
   function addChapter() {
     rows = [...rows, { ChapterSE: '', Description: '', Characters: '',  _tagsText: '' }];
   }
-
   function removeChapter(index: number) {
     rows = rows.filter((_, i) => i !== index);
   }
@@ -80,8 +87,17 @@
       editedAt: null,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       category: category || 'All', 
-      dataType: 'json',
-      characters: characters.filter((c) => c.Name),
+      dataType: 'Lib',
+      characters: characters
+        .filter(c => c.Name)
+        .map(c => ({
+          Name: c.Name,
+          Image: c.Image,
+          role: c.role,
+          description: c.description,
+          alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
+          tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        })),
       rows: rows
         .filter(r => r.ChapterSE)
         .map(r => ({
@@ -211,18 +227,52 @@
 
       <div class="space-y-2">
         {#each characters as character, i}
-          <div class="flex gap-2">            
-            <label class="floating-label w-full"><span>Name *</span>
-            <input type="text" placeholder="Name *" class="input input-bordered flex-1" bind:value={character.Name}/>
+          <div class="flex gap-2 flex-wrap mb-2 p-2 rounded-lg bg-base-200 border border-base-300">
+            <div class="flex gap-2 w-full">
+              <label class="floating-label w-full" for="charName">
+                <span><span class="label-text">Name **</span></span>
+                <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.Name} />
+              </label>
+              <label class="floating-label w-full" for="charRole">
+                <span><span class="label-text">Role</span></span>
+                <input type="text" id="charRole" placeholder="role" class="input input-sm w-full" bind:value={character.role} />
+              </label>
+              <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>✕</button>
+            </div>
+
+            <label class="floating-label w-full" for="charImgUrl">
+              <span>
+                <span class="label-text">Image URL</span>
+              </span>
+              <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.Image} />
             </label>
-            <label class="floating-label w-full"><span>Img URL</span>
-            <input type="text" placeholder="Image URL" class="input input-bordered flex-1" bind:value={character.Image}/>
-            </label>
-            <button class="btn btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
+            <details class="w-full mt-2">
+              <summary class="cursor-pointer text-sm font-medium text-primary text-center">Extra Details</summary>
+
+              <div class="space-y-2 mt-2">
+              <label class="floating-label w-full" for="charAltNames">
+                <span>
+                  <span class="label-text">alternativeNames</span>
+                  <span class="label-text-alt text-info italic">: Comma separated</span>
+                </span>
+                <input id="charAltNames" placeholder="Alternative Names [Ex: Name01, name-01]" class="input input-sm w-full" bind:value={character._alternativeNamesString}/>
+              </label>
+              <label class="floating-label w-full" for="charTags">
+                <span>
+                  <span class="label-text">char-Tags</span>
+                  <span class="label-text-alt text-info italic">: Comma separated</span>
+                </span>
+                <input id="charTags" placeholder="Tags [Ex: Hero, Villain]" class="input input-sm w-full" bind:value={character._tagsString}/>
+              </label>
+              <label class="floating-label w-full" for="charDescription">
+                <span>
+                  <span class="label-text">Description</span>
+                </span>
+                <textarea id="charDescription" placeholder="Description" class="textarea textarea-bordered w-full" bind:value={character.description}></textarea>
+              </label>
+              </div>
+              
+            </details>
           </div>
         {/each}
         <button class="btn btn-outline btn-sm" on:click={addCharacter}>+ Add Character</button>
@@ -232,40 +282,40 @@
 
       <div class="space-y-2">
         {#each rows as row, i}
-          <div class="card bg-base-200 p-4">
+          <div class="card bg-base-200 border border-base-300 p-4">
             <div class="flex gap-2 mb-2">
               <label class="floating-label w-full">
               <span>Chapter *</span>
               <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.ChapterSE} />
-            </label>
+              </label>
               <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-4 h-4 stroke-current" >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <label class="floating-label w-full"><span>Description</span>
-            <textarea
-              placeholder="Description"
-              class="textarea textarea-bordered w-full textarea-sm mb-2"
-              bind:value={row.Description}
-            ></textarea>
+            <label class="floating-label w-full">
+              <span>Description</span>
+              <textarea placeholder="Description" class="textarea textarea-bordered w-full textarea-sm mb-2"
+                bind:value={row.Description}></textarea>
             </label>
-            <label class="floating-label w-full"><span>Tags (comma separated)</span>
-            <input
-              type="text"
-              placeholder="Tags (comma separated)"
-              class="input input-bordered w-full input-sm mb-2"
-              bind:value={row._tagsText}
-            />
+            <label class="floating-label w-full">
+              <span>Tags (comma separated)</span>
+              <input
+                type="text"
+                placeholder="Tags (comma separated)"
+                class="input input-bordered w-full input-sm mb-2"
+                bind:value={row._tagsText}
+              />
             </label>
-            <label class="floating-label w-full"><span>Characters</span>
-            <input
-              type="text"
-              placeholder="Characters"
-              class="input input-bordered w-full input-sm"
-              bind:value={row.Characters}
-            />
+            <label class="floating-label w-full">
+              <span>Characters</span>
+              <input
+                type="text"
+                placeholder="Characters"
+                class="input input-bordered w-full input-sm"
+                bind:value={row.Characters}
+              />
             </label>
           </div>
         {/each}

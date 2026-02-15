@@ -1,7 +1,7 @@
 <!-- src/lib/components/HomeScreen.svelte -->
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { dbService } from '$lib/services/db.service';
+  import { dbService, entryFingerprint } from '$lib/services/db.service';
   import { goto } from '$app/navigation';
   import { Svg } from '$lib/index';
 
@@ -35,6 +35,13 @@
   let selectionMode = false;
 
   const dispatch = createEventDispatcher();
+
+  // showUniqueOnly 
+  let showUniqueOnly = false;
+
+  $: displayedEntries = showUniqueOnly
+      ? Array.from(new Map($filteredEntries.map(e => [entryFingerprint(e), e])).values())
+      : $filteredEntries;
 
   // Alert
   let alertMessage = '';
@@ -297,6 +304,22 @@ UI Layout
 
   <!-- Category Tabs -->
   <div class="tabs tabs-border flex-nowrap gap-1 overflow-x-auto bg-base-200 px-2 pt-2 pb-1 scrollbar-hide">
+    <button class="p-0 m-0" title="Toggle unique entries" aria-label="Show unique entries only"
+      on:click={() => showUniqueOnly = !showUniqueOnly}>
+      {#if showUniqueOnly}
+        <!-- Filled / active duplicate filter icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8" />
+        </svg>
+      {:else}
+        <!-- Outline / inactive duplicate filter icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+          <rect x="4" y="4" width="16" height="16" stroke="currentColor" stroke-width="2" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h8" />
+        </svg>
+      {/if}
+    </button>
     <button class="tab relative" class:tab-active={$selectedCategory === 'All'} on:click={() => selectedCategory.set('All')} >
       <div class="z-10">All</div>
       <span class="bg-base-100 text-xs rounded-3xl px-1.5 py-0.5">{$entries.length}</span>
@@ -310,6 +333,7 @@ UI Layout
         </div>
       </button>
     {/each}
+ 
   </div>
 
   <!-- Add Entry Button -->
@@ -347,7 +371,7 @@ UI Layout
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
   <div class="flex-1 overflow-auto p-4">
     <CardGrid
-      entries={$filteredEntries}
+      entries={displayedEntries}
       {selectionMode}
       {selectedEntries}
       gridCols={$gridCols}

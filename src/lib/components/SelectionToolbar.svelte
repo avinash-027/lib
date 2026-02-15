@@ -51,7 +51,7 @@
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M10 11v6m4-6v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/>
 		</svg>
 		{#if selectedCount > 0}
-			<span class="absolute top-0 right-0 flex h-5 w-5 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">{selectedCount}
+			<span class="absolute -top-6 -left-2 flex h-5 w-20 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white p-1">{selectedCount}
 			</span>
 		{/if}
 	</button>

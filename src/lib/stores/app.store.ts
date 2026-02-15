@@ -43,7 +43,7 @@ export const allEntries = writable<LData[]>([]);
 // Other UI / filter stores
 // -----------------------------
 export const searchQuery = writable('');
-export const searchMode = writable<'default' | 'a' | 't' | 'b' | 'c'>('default');
+export const searchMode = writable<'default' | 'a' | 't' | 'b' | 'c' | 'd'>('default');
 
 // // ORIGINAL (non-persistent)
 // export const selectedCategory = writable('All');
@@ -108,6 +108,9 @@ export const filteredEntries = derived(
               .join(' ')
               .toLowerCase()
               .includes(q);
+          
+          case 'd':
+            return entry.dataType.toLowerCase().includes(q);
 
           default:
             return (

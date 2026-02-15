@@ -7,16 +7,29 @@ const FOLDER_NAME_KEY = 'autoBackupFolderName';
 let timeoutId: number | null = null;
 
 /** Enable auto backup */
-  export async function enableAutoBackup() {
-  const dirHandle = await (window as any).showDirectoryPicker();
-  await dirHandle.requestPermission({ mode: 'readwrite' });
+export async function enableAutoBackup() {
+  try {
+    const dirHandle = await (window as any).showDirectoryPicker();
+  } catch (err) {
+    console.error('Failed to open directory picker', err);
+    alert('Cannot open folder in this browser. Try Edge or Chrome.');
+  }
+  
+  // Verify permission
+  const options = { mode: 'readwrite' };
+  if ((await dirHandle.queryPermission(options)) !== 'granted') {
+    await dirHandle.requestPermission(options);
+  }
+
+  // SAVE TO INDEXEDDB (Not localStorage!)
+  const tx = (await dbService.getDB()).transaction('settings', 'readwrite');
+  await tx.objectStore('settings').put(dirHandle, 'backupDirHandle');
+  await tx.objectStore('settings').put(dirHandle.name, 'backupFolderName');
+  await tx.done;
 
   localStorage.setItem('autoBackupEnabled', 'true');
-  localStorage.setItem('autoBackupFolderName', dirHandle.name);
-  localStorage.setItem('autoBackupDirHandle', JSON.stringify(dirHandle));
-
   scheduleNextBackup(dirHandle);
-  await runBackup(dirHandle); // immediate first backup
+  await runBackup(dirHandle); 
 }
 
 /** Disable auto backup */
@@ -28,13 +41,18 @@ export function disableAutoBackup() {
 }
 
 /** Restore on app reload */
-export function restoreAutoBackup() {
-  if (localStorage.getItem(ENABLE_KEY) !== 'true') return;
-  const raw = localStorage.getItem(HANDLE_KEY);
-  if (!raw) return;
+export async function restoreAutoBackup() {
+  if (localStorage.getItem('autoBackupEnabled') !== 'true') return;
 
-  const dirHandle = JSON.parse(raw);
-  scheduleNextBackup(dirHandle);
+  // READ FROM INDEXEDDB
+  const db = await dbService.getDB();
+  const dirHandle = await db.get('settings', 'backupDirHandle');
+
+  if (dirHandle) {
+    // Browsers require a "user gesture" to re-activate the handle 
+    // but often it works automatically if the user previously granted it.
+    scheduleNextBackup(dirHandle);
+  }
 }
 
 /** Run backup now */
@@ -53,19 +71,38 @@ async function runBackup(dirHandle: any) {
   console.log('✅ Auto backup saved at', new Date().toLocaleString());
 }
 
-// overwritten every night at 12:00
-/** Schedule next 12:00 AM backup */
+// overwritten every time
+/** Schedule next backup (runs at 12:00 AM and 12:00 PM) */
 function scheduleNextBackup(dirHandle: any) {
   if (timeoutId) clearTimeout(timeoutId);
 
   const now = new Date();
-  const nextMidnight = new Date();
-  nextMidnight.setHours(24, 0, 0, 0); // tonight 12:00
+  
+  // Create 12:00 PM candidate
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
 
-  const delay = nextMidnight.getTime() - now.getTime();
+  // Create 12:00 AM (Midnight) candidate
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+
+  let nextTarget: Date;
+
+  if (now < noon) {
+    // It's morning, next backup is Noon today
+    nextTarget = noon;
+  } else {
+    // It's afternoon/night, next backup is Midnight
+    nextTarget = midnight;
+  }
+
+  const delay = nextTarget.getTime() - now.getTime();
 
   timeoutId = window.setTimeout(async () => {
-    await runBackup(dirHandle);
-    scheduleNextBackup(dirHandle); // repeat every 24h
+    // Re-verify permission before running
+    if ((await dirHandle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+      await runBackup(dirHandle);
+    }
+    scheduleNextBackup(dirHandle); // Repeat
   }, delay);
 }

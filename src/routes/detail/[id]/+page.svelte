@@ -5,6 +5,7 @@
   import { marked } from 'marked';
 	import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { slide } from 'svelte/transition';
 
   import { page } from '$app/stores';
   import { dbService } from '$lib/services/db.service';
@@ -22,8 +23,30 @@
   let rating = 0; // 0–10 scale
 
   // -----------------------------
-  // open modal by section
+  // Track which character is currently expanded
+  let expandedCharacter: string | null = null;
+
+  function toggleCharacter(name: string) {
+      expandedCharacter = expandedCharacter === name ? null : name;
+  }
+
   // -----------------------------
+  // Sorted characters
+  // Define priority roles
+  const mainRoles = ['main', 'lead', 'mc', 'fmc', 'protagonist'];
+
+  // Sorted characters array
+  $: sortedCharacters = entry?.characters
+    ? [...entry.characters].sort((a, b) => {
+        const aPriority = mainRoles.includes(a.role.toLowerCase()) ? 0 : 1;
+        const bPriority = mainRoles.includes(b.role.toLowerCase()) ? 0 : 1;
+        // if both same priority, keep original order
+        return aPriority - bPriority;
+      })
+    : [];
+
+  // -----------------------------
+  // open modal by section
   type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category';
   let editSection: Section = 'All';
 
@@ -55,7 +78,6 @@
 
     if (entry) entry.rating = rating;
   }
-
   function goBack() {
     history.length > 1 ? window.history.back() : goto('/'); // fallback if no history
   }
@@ -64,7 +86,6 @@
     showEditModal = false;
     await loadEntry();
   }
-
   function handleCancel() {
     showEditModal = false;
   }
@@ -101,16 +122,7 @@
     return marked.parseInline(text);
   }
 
-  // -----------------------------
-  // date time
-  function fmt(date?: string | null) {
-    if (!date) return null;
-    return new Date(date).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-  }
-
+  // Sort rows 
   function chapterSort(a: string, b: string) {
     const numA = parseFloat(a);
     const numB = parseFloat(b);
@@ -131,6 +143,16 @@
   $: sortedRows = (entry?.rows ?? []).slice().sort(
     (a, b) => chapterSort(a.ChapterSE, b.ChapterSE)
   );
+
+  // -----------------------------
+  // date time
+  function fmt(date?: string | null) {
+    if (!date) return null;
+    return new Date(date).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+  }
 
 </script>
 
@@ -282,23 +304,23 @@
       <!-- Characters -->
       {#if entry.characters.length > 0}
         <div class="card bg-base-100 shadow-xl">
-          <div class="card-body p-4 md:p-6">
+          <div class="card-body p-5 md:p-6">
             <h2 class="card-title">Characters
-                <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Characters" on:click={() => openEdit('characters')}>
-                  <svg
-                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                </button>
+              <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Characters" on:click={() => openEdit('characters')}>
+                <svg
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              </button>
             </h2>
             <div class="flex gap-2 md:gap-4 overflow-x-auto pb-1 scrollbar-hide">
-              {#each entry.characters as character}
-                <div class="flex flex-col items-center gap-2 flex-shrink-0">
+              {#each sortedCharacters as character}
+                <div class="flex flex-col items-center gap-2 flex-shrink-0 w-18 md:w-22 text-center cursor-pointer" on:click={() => toggleCharacter(character.Name)}>
                   {#if character.Image}
-                    <img src={character.Image} alt={character.Name} class="w-15 h-15 rounded-full object-cover" />
+                    <img src={character.Image} alt={character.Name} class="w-15 h-15 md:w-18 md:h-18 rounded-full object-cover"/>
                   {:else}
-                    <div class="w-19 h-19 md:w-20 md:h-20 rounded-full bg-base-300 flex items-center justify-center" >
+                    <div class="w-15 h-15 md:w-18 md:h-18 rounded-full bg-base-300 flex items-center justify-center" >
                       <svg
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                         class="w-8 h-8 stroke-current text-base-content/20" >
@@ -307,10 +329,27 @@
                       </svg>
                     </div>
                   {/if}
-                  <span class="text-sm text-center">{character.Name}</span>
+                  <div class="text-sm text-center leading-tight break-all line-clamp-2">
+                    {#if mainRoles.includes(character.role.toLowerCase())}
+                      <span class="indicator-item indicator-bottom indicator-center status status-info"></span>
+                    {/if}
+                    <span>{character.Name}</span>
+                  </div>
                 </div>
               {/each}
             </div>
+            {#each sortedCharacters as character}
+              {#if expandedCharacter === character.Name && (character.role || character.alternativeNames.length > 0 || character.tags.length > 0)}
+                <div transition:slide={{ duration: 200 }} class="mt-2 p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
+                  <div class="break-all"><span class="font-semibold">Name:</span> {character.Name}</div>
+                  {#if character.role}<div class="break-all"><span class="font-semibold">Role:</span> {character.role}</div>{/if}
+                  {#if character.alternativeNames.length > 0}<div class="break-words"><span class="font-semibold">Alternative Names:</span> {character.alternativeNames.join(', ')}</div>{/if}
+                  {#if character.tags.length > 0}
+                    <div class="flex flex-wrap gap-1 font-semibold">Tags:{#each character.tags as tag}<span class="badge badge-info badge-xs">{tag}</span>{/each}</div>
+                  {/if}
+                </div>
+              {/if}
+            {/each}
           </div>
         </div>
       {/if}

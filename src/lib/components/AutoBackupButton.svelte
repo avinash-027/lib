@@ -16,7 +16,7 @@
         await enableAutoBackup();
         enabled = true;
         folderName = localStorage.getItem('autoBackupFolderName');
-        message = 'Auto backup enabled (every night 12:00)';
+        message = 'Auto backup enabled (12:00 AM & 12:00 PM)';
       } else {
         disableAutoBackup();
         enabled = false;
@@ -34,13 +34,14 @@
 </script>
 
 <button class="btn btn-md btn-ghost rounded-full flex justify-between py-3 px-0" on:click={toggle}>
-  <span>🕛 Auto Backup</span>
-  <input type="checkbox" class="toggle toggle-primary" checked={enabled} />
+  <span>🕛 Auto Backup :</span>
+  <input type="checkbox" class="toggle toggle-primary" checked={enabled} />{enabled == true ? 'On' : 'Off'}
 </button>
 
 {#if enabled && folderName}
   <div class="text-xs text-gray-500 mt-1 pl-1">
-    📁 {folderName}/lib-autobackup.json<br />⏰ Every night at 12:00 AM
+    📁 {folderName}/lib-autobackup.json<br />
+    ⏰ Every 12 hours (12:00 AM & 12:00 PM)
   </div>
 {/if}
 

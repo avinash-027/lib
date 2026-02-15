@@ -5,7 +5,7 @@
   export let show = false;
   let inputValue = '';
   let inputEl: HTMLInputElement;
-  type SearchMode = 'default' | 'a' | 't' | 'b' | 'c';
+  type SearchMode = 'default' | 'a' | 't' | 'b' | 'c' | 'd';
 
   $: if (show) {
     focusInput();
@@ -32,6 +32,9 @@
     } else if (lower.startsWith('c:')) {
       searchMode.set('c');
       searchQuery.set(raw.slice(2));
+    } else if (lower.startsWith('d:')) {
+      searchMode.set('d');
+      searchQuery.set(raw.slice(2));
     } else {
       searchMode.set('default');
       searchQuery.set(raw);
@@ -51,7 +54,7 @@
     <input
       bind:this={inputEl}
       type="text"
-      placeholder="Search ('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters)"
+      placeholder="Search ('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType)"
       class="input input-bordered flex-1"
       bind:value={inputValue}
     />
@@ -65,10 +68,10 @@
   {#if $searchMode !== 'default'}
     <div class="text-xs text-info mt-2">
       Searching in:
-      {#if $searchMode === 'a'} alternative titles{/if}
-      {#if $searchMode === 't'} tags {/if}
-      {#if $searchMode === 'b'} badges {/if}
-      {#if $searchMode === 'c'} characters {/if}
+      {#if $searchMode === 'a'} alternative titles <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
+      {#if $searchMode === 't'} tags <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
+      {#if $searchMode === 'b'} badges <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
+      {#if $searchMode === 'c'} characters <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
     </div>
   {/if}
 </div>

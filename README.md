@@ -34,6 +34,7 @@ Track your **manhwa, manga, novels, and more** with rich metadata, offline suppo
 <p>
 
 - There are still errors and warnings: Check Via `npm run check` & `npm run build`
+- AND Import checks fingerprint match; unmatched entries are inserted, matched entries are either archived (MD changed) or merged and updated.
 - [How to use GitHub Pages with Sveltekit? :/stackoverflow](https://stackoverflow.com/questions/75796127/how-to-use-github-pages-with-sveltekit)
 - Create a blank file named .nojekyll in your static folder (or the root of **your deployment branch**).
 - `svelte.config.js` : `paths: { base: process.argv.includes('dev') ? '' : "/REPO-NAME" }`
@@ -69,21 +70,27 @@ Track your **manhwa, manga, novels, and more** with rich metadata, offline suppo
     "description": "In a world where gates connect Earth to deadly dungeons, the weakest hunter awakens a mysterious system that allows him to level up alone.",
     "badges": ["Manhwa", "Action", "Fantasy", "Completed"],
     "tags": [ "gates", "hunters", "dungeons", "system", "shadows", "awakening"],
-    "rating": 8.9,
+    "rating": null,
     "createdAt": "2024-12-15T08:20:00.000Z",
     "openedAt": "2025-02-07T14:10:30.000Z",
     "editedAt": "2025-02-07T18:45:10.000Z",
     "characters": [
       {
         "Name": "Sung Jin-Woo",
-        "Image": "https://example.com/characters/sung-jin-woo.png"
+        "Image": "https://example.com/characters/sung-jin-woo.png",
+        "role": "Main",
+        "alternativeNames": [ "Jinwoo"],
+        "tags": ["MC", "Solo-Player"],
+        "description": ""
       },
       {
         "Name": "Cha Hae-In",
+        "role": "Main",
         "Image": "https://example.com/characters/cha-hae-in.png"
       },
       {
         "Name": "Go Gun-Hee",
+        "role": "supporting",
         "Image": "https://example.com/characters/go-gun-hee.png"
       }
     ],

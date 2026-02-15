@@ -16,14 +16,20 @@
     "characters": [
       {
         "Name": "Sung Jin-Woo",
-        "Image": "https://example.com/characters/sung-jin-woo.png"
+        "Image": "https://example.com/characters/sung-jin-woo.png",
+        "role": "Main",
+        "alternativeNames": [ "Jinwoo"],
+        "tags": ["MC", "Solo-Player"],
+        "description": ""
       },
       {
         "Name": "Cha Hae-In",
+        "role": "Main",
         "Image": "https://example.com/characters/cha-hae-in.png"
       },
       {
         "Name": "Go Gun-Hee",
+        "role": "supporting",
         "Image": "https://example.com/characters/go-gun-hee.png"
       }
     ],

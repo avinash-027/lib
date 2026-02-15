@@ -76,6 +76,7 @@
           {/if}
         </figure>
         <div class="card-body p-2">
+          {#if entry.dataType}<span class="absolute top-1 right-1 rounded-2xl text-[.84em] md:text-sm bg-base-200 px-1 py-0">{entry.dataType}</span>{/if}
           {#if entry.rating !== null && entry.rating > 0}
           <span class="absolute top-1.5 left-1 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
           {/if}
