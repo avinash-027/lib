@@ -6,7 +6,8 @@
 	import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { slide } from 'svelte/transition';
-
+  import { copyOnDoubleClick } from '$lib/services/copyOnDoubleClick';
+  
   import { page } from '$app/stores';
   import { dbService } from '$lib/services/db.service';
   import type { LData } from '$lib/types/ldata';
@@ -141,7 +142,7 @@
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   }
   $: sortedRows = (entry?.rows ?? []).slice().sort(
-    (a, b) => chapterSort(a.ChapterSE, b.ChapterSE)
+    (a, b) => chapterSort(a.chapterSE, b.chapterSE)
   );
 
   // -----------------------------
@@ -153,7 +154,6 @@
       timeStyle: 'short'
     });
   }
-
 </script>
 
 <svelte:head>
@@ -234,18 +234,18 @@
             </div>
 
             <div class="flex-1 min-w-0 flex flex-col justify-center">
-              <h1 class="text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
+              <h1 use:copyOnDoubleClick={entry?.title} class="text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
 
-              {#if entry.alternativeTitles.length > 0}
-              <p class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">
+              {#if (entry.alternativeTitles ?? []).length > 0}
+              <p use:copyOnDoubleClick={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">
                 {entry.alternativeTitles.join(', ')}
               </p>
               {/if} 
 
-              {#if entry.badges.length > 0}
+              {#if (entry.badges ?? []).length > 0}
                 <div class="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4" title="badges">
                   {#each entry.badges as badge}
-                    <span class="badge badge-primary badge-sm md:badge-md">{badge}</span>
+                    <span use:copyOnDoubleClick={badge} class="badge badge-primary badge-sm md:badge-md">{badge}</span>
                   {/each}
                 </div>
               {/if}
@@ -285,15 +285,15 @@
             </div>
           </div>
           <div>
-            {#if entry.alternativeTitles.length > 0}
-              <p class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words inline-block md:hidden">
+            {#if (entry.alternativeTitles ?? []).length > 0}
+              <p use:copyOnDoubleClick={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words inline-block md:hidden">
                 {entry.alternativeTitles.join(', ')}
               </p>
             {/if} 
-            {#if entry.tags.length > 0}
+            {#if (entry.tags ?? []).length > 0}
               <div class="flex flex-wrap gap-1 md:gap-2 mb-2 mt-1 justify-end" title="tags">
                 {#each entry.tags as tag}
-                  <span class="badge badge-info badge-sm md:badge-md">{tag}</span>
+                  <span use:copyOnDoubleClick={tag} class="badge badge-info badge-sm md:badge-md">{tag}</span>
                 {/each}
               </div> 
             {/if}
@@ -302,7 +302,7 @@
       </div>
       
       <!-- Characters -->
-      {#if entry.characters.length > 0}
+      {#if (entry.characters ?? []).length > 0}
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-5 md:p-6">
             <h2 class="card-title">Characters
@@ -316,9 +316,9 @@
             </h2>
             <div class="flex gap-2 md:gap-4 overflow-x-auto pb-1 scrollbar-hide">
               {#each sortedCharacters as character}
-                <div class="flex flex-col items-center gap-2 flex-shrink-0 w-18 md:w-22 text-center cursor-pointer" on:click={() => toggleCharacter(character.Name)}>
-                  {#if character.Image}
-                    <img src={character.Image} alt={character.Name} class="w-15 h-15 md:w-18 md:h-18 rounded-full object-cover"/>
+                <div class="flex flex-col items-center gap-2 flex-shrink-0 w-18 md:w-22 text-center cursor-pointer" on:click={() => toggleCharacter(character.name)}>
+                  {#if character.image}
+                    <img use:copyOnDoubleClick={character.name} src={character.image} alt={character.name} class="w-15 h-15 md:w-18 md:h-18 rounded-full object-cover"/>
                   {:else}
                     <div class="w-15 h-15 md:w-18 md:h-18 rounded-full bg-base-300 flex items-center justify-center" >
                       <svg
@@ -333,18 +333,18 @@
                     {#if mainRoles.includes(character.role.toLowerCase())}
                       <span class="indicator-item indicator-bottom indicator-center status status-info"></span>
                     {/if}
-                    <span>{character.Name}</span>
+                    <span>{character.name}</span>
                   </div>
                 </div>
               {/each}
             </div>
             {#each sortedCharacters as character}
-              {#if expandedCharacter === character.Name && (character.role || character.alternativeNames.length > 0 || character.tags.length > 0)}
-                <div transition:slide={{ duration: 200 }} class="mt-2 p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
-                  <div class="break-all"><span class="font-semibold">Name:</span> {character.Name}</div>
+              {#if expandedCharacter === character.name && (character.role || (character.alternativeNames ?? []).length > 0 || (character.tags ?? []).length > 0)}
+                <div use:copyOnDoubleClick={character.name} transition:slide={{ duration: 200 }} class="mt-2 p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
+                  <div class="break-all"><span class="font-semibold">Name:</span> {character.name}</div>
                   {#if character.role}<div class="break-all"><span class="font-semibold">Role:</span> {character.role}</div>{/if}
-                  {#if character.alternativeNames.length > 0}<div class="break-words"><span class="font-semibold">Alternative Names:</span> {character.alternativeNames.join(', ')}</div>{/if}
-                  {#if character.tags.length > 0}
+                  {#if (character.alternativeNames ?? []).length > 0}<div class="break-words"><span class="font-semibold">Alternative Names:</span> {character.alternativeNames.join(', ')}</div>{/if}
+                  {#if (character.tags ?? []).length > 0}
                     <div class="flex flex-wrap gap-1 font-semibold">Tags:{#each character.tags as tag}<span class="badge badge-info badge-xs">{tag}</span>{/each}</div>
                   {/if}
                 </div>
@@ -377,7 +377,7 @@
       {/if}
 
       <!-- Chapters Rows-->
-      {#if entry.rows.length > 0}
+      {#if (entry.rows ?? []).length > 0}
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-3 md:p-6">
             <h2 class="card-title ml-1">Chapters
@@ -389,10 +389,10 @@
                 </svg>
                 </button>
             </h2>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto text-xs md:text-sm">
               <div class="w-full border border-base-300 rounded-lg">
                 <!-- Header -->
-                <div class="grid grid-cols-3 gap-4 px-4 py-3 font-semibold bg-base-200 rounded-t-lg">
+                <div class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 font-semibold bg-base-200 rounded-t-lg">
                   <div>Chapter</div>
                   <div>Characters</div>
                   <div>Tags</div>
@@ -401,27 +401,26 @@
                 <!-- Rows -->
                 <div class="divide-y divide-base-300">
                   {#each sortedRows as row}
-                    <div class="grid grid-cols-3 gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg">
-                      <div class="font-semibold">{row.ChapterSE}</div>
-                      <div>{row.Characters}</div>
+                    <div class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg">
+                      <div class="font-semibold">{row.chapterSE}</div>
+                      <div>{row.characters}</div>
                       <div>
-                      {#if row.Tags.length > 0}
+                      {#if (row.tags ?? []).length > 0}
                         <div class="flex flex-wrap gap-1">
-                          {#each row.Tags as tag}
-                            <span class="bg-base-200 rounded-lg px-0.5">{tag}</span>
+                          {#each row.tags as tag}
+                            <span class="bg-base-300/70 rounded-lg px-0.5">{tag}</span>
                           {/each}
                         </div>
                       {/if}
                       </div>
                     </div>
-
-                    {#if row.Description}
+                    {#if row.description}
                       <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 rounded-b-lg">
                         <span class="ml-2 text-base-content/60">
                           ↳ <span class="font-semibold">Description:</span>
                         </span>
                         <span class="inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
-                          {@html mdInline(row.Description)}
+                          {@html mdInline(row.description)}
                         </span>
                       </div>
                     {/if}

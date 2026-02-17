@@ -3,6 +3,14 @@
   import { tick } from 'svelte';
 
   export let show = false;
+
+  import { get } from 'svelte/store';
+  $: {
+    if (get(searchQuery)) {
+      show = true;
+    }
+  }
+
   let inputValue = '';
   let inputEl: HTMLInputElement;
   type SearchMode = 'default' | 'a' | 't' | 'b' | 'c' | 'd';

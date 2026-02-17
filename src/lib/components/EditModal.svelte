@@ -33,7 +33,7 @@
   // Sorted characters (based on editable characters)
   const mainRoles = ['main', 'lead', 'mc', 'fmc', 'protagonist'];
 
-  $: sortedCharacters = [...characters].sort((a, b) => {
+  $: sortedcharacters = [...characters].sort((a, b) => {
     const aPriority = mainRoles.includes((a.role ?? '').toLowerCase()) ? 0 : 1;
     const bPriority = mainRoles.includes((b.role ?? '').toLowerCase()) ? 0 : 1;
     return aPriority - bPriority;
@@ -63,7 +63,7 @@
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   }
   $: sortedRows = [...rows].sort((a, b) =>
-    chapterSort(a.ChapterSE, b.ChapterSE)
+    chapterSort(a.chapterSE, b.chapterSE)
   );
 
   onMount(async () => {
@@ -81,7 +81,7 @@
     tags = entry.tags.join(', ');
     category = entry.category;
 
-    // Characters
+    // characters
     characters = entry.characters.map(c => ({
       ...c,
       _alternativeNamesString: (c.alternativeNames ?? []).join(', '),
@@ -91,14 +91,42 @@
     // Chapters
     rows = entry.rows.map(r => ({
       ...structuredClone(r),
-      _tagsText: r.Tags.join(', ')
+      _tagsText: r.tags.join(', ')
     }));
   });
+
+  // character mention picker
+  let activeRowIndex: number | null = null;
+  function toggleCharacterForRow(rowIndex: number, charName: string) {
+    const row = rows[rowIndex];
+    // split existing names by comma
+    const current = row.characters
+      ? row.characters.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+
+    if (current.includes(charName)) {
+      // REMOVE
+      row.characters = current.filter(c => c !== charName).join(', ');
+    } else {
+      // ADD
+      row.characters = [...current, charName].join(', ');
+    }
+    rows = [...rows]; // trigger reactivity
+  }
+  function clearCharacters(rowIndex: number) {
+    rows[rowIndex].characters = '';
+    rows = [...rows]; // trigger reactivity
+    // clearCharactersAndClose()
+    // activeRowIndex = null;
+  }
+  function closePicker() {
+    activeRowIndex = null;
+  }
 
   function addCharacter() {
     characters = [
       ...characters,
-      { Name: '', Image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
+      { name: '', image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
     ];
   }
   function removeCharacter(index: number) {
@@ -108,7 +136,7 @@
   function addChapter() {
     rows = [
       ...rows,
-      { ChapterSE: '', Description: '', Characters: '', Tags: [], _tagsText: ''}
+      { chapterSE: '', description: '', characters: '', tags: [], _tagsText: ''}
     ];
   }
   function removeChapter(i: number) {
@@ -131,27 +159,27 @@
         updateData.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
         updateData.category = category || 'All';
         updateData.characters = characters.map(c => ({
-          Name: c.Name,
-          Image: c.Image,
+          name: c.name,
+          image: c.image,
           role: c.role,
           description: c.description,
           alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
           tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
         }));
         updateData.rows = rows
-          .filter(r => r.ChapterSE)
+          .filter(r => r.chapterSE)
           .map(r => ({
-            ChapterSE: r.ChapterSE,
-            Description: r.Description,
-            Characters: r.Characters,
-            Tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
+            chapterSE: r.chapterSE,
+            description: r.description,
+            characters: r.characters,
+            tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
           }));
         break;
 
       case 'characters':
         updateData.characters = characters.map(c => ({
-          Name: c.Name,
-          Image: c.Image,
+          name: c.name,
+          image: c.image,
           role: c.role,
           description: c.description,
           alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
@@ -161,12 +189,12 @@
 
       case 'chapters':
         updateData.rows = rows
-          .filter(r => r.ChapterSE)
+          .filter(r => r.chapterSE)
           .map(r => ({
-            ChapterSE: r.ChapterSE,
-            Description: r.Description,
-            Characters: r.Characters,
-            Tags: r._tagsText
+            chapterSE: r.chapterSE,
+            description: r.description,
+            characters: r.characters,
+            tags: r._tagsText
               .split(',')
               .map(t => t.trim())
               .filter(Boolean)
@@ -296,23 +324,23 @@
       {#if editSection === 'All' || editSection === 'description'}
         <div class="form-control">
           <label class="floating-label" for="description">
-            <span class="label-text font-semibold">Description</span>
+            <span class="label-text font-semibold">description</span>
           </label>
-          <textarea id="description" placeholder="Description" class="textarea textarea-bordered w-full" bind:value={description}></textarea>
+          <textarea id="description" placeholder="description" class="textarea textarea-bordered w-full" bind:value={description}></textarea>
         </div>
       {/if}
 
       {#if editSection === 'All' ||  editSection === 'characters'}
-        {#if editSection === 'All'}<div class="divider">Characters</div>{/if}
+        {#if editSection === 'All'}<div class="divider">characters</div>{/if}
         <div class="flex flex-col max-h-[440px] md:max-h-full">
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
-          {#each sortedCharacters as character, i}
+          {#each sortedcharacters as character, i}
             <div class="flex gap-2 flex-wrap mb-2 p-2 rounded-lg border border-base-300 bg-base-200">
               <div class="flex gap-2 w-full">
                 <label class="floating-label w-full" for="charName">
                   <span><span class="label-text">Name **</span></span>
-                  <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.Name} />
+                  <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.name} />
                 </label>
                 <label class="floating-label w-full" for="charRole">
                   <span><span class="label-text">Role</span></span>
@@ -324,7 +352,7 @@
                 <span>
                   <span class="label-text">Image URL</span>
                 </span>
-                <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.Image} />
+                <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.image} />
               </label>
               <details class="w-full">
                 <summary class="cursor-pointer text-sm font-medium text-primary my-1 text-center">Extra Details</summary>
@@ -343,9 +371,9 @@
                     </span>
                     <input id="charTags" placeholder="Tags [Ex: Hero, Villain]" class="input input-sm w-full" bind:value={character._tagsString} />
                   </label>
-                  <label class="floating-label w-full" for="charDescription">
-                    <span class="label-text">Description</span>
-                    <textarea id="charDescription" placeholder="Description" class="textarea textarea-bordered w-full" bind:value={character.description} ></textarea>
+                  <label class="floating-label w-full" for="chardescription">
+                    <span class="label-text">description</span>
+                    <textarea id="chardescription" placeholder="description" class="textarea textarea-bordered w-full" bind:value={character.description} ></textarea>
                   </label>
                 </div>
               </details>
@@ -361,26 +389,44 @@
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
           {#each sortedRows as row, i}
-            <div class="card border border-base-300 bg-base-200 p-4">
+            <div class="card border border-base-300 bg-base-200 p-1.5 md:p-4">
               <div class="flex gap-2 mb-2">
                 <label class="floating-label w-full"><span>Chapter **</span>
-                <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.ChapterSE}/>
+                <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.chapterSE}/>
                 </label>
                 <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>✕</button>
               </div>
 
               <label class="floating-label w-full"><span>Description</span>
-              <textarea placeholder="Description" class="textarea textarea-bordered w-full textarea-sm mb-2" 
-                bind:value={row.Description}></textarea>
+              <textarea placeholder="description" class="textarea textarea-bordered w-full textarea-sm mb-2" 
+                bind:value={row.description}></textarea>
               </label>
               <label class="floating-label w-full"><span>Tags (comma separated)</span>
               <input type="text" placeholder="Tags (comma separated)" class="input input-bordered w-full input-sm mb-2"
                 bind:value={row._tagsText}/>
               </label>
               <label class="floating-label w-full"><span>Characters</span>
-              <input type="text" placeholder="Characters" class="input input-bordered w-full input-sm"
-                bind:value={row.Characters}/>
+              <input type="text" placeholder="characters" class="input input-bordered w-full input-sm"
+                bind:value={row.characters} 
+                on:focus={() => activeRowIndex = i}/>
               </label>
+              {#if activeRowIndex === i}
+                <div class="mt-2 p-2 bg-base-300 rounded-xl space-y-2">
+                <div class="flex gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
+                  {#each characters as char}
+                    <button type="button" 
+                      class={`btn rounded-md btn-xs flex-shrink-0 ${row.characters?.split(',').map(s => s.trim()).includes(char.name)? 'btn-info': 'btn-outline'}`}
+                      on:click={() => toggleCharacterForRow(i, char.name)}>
+                      {char.name}
+                    </button>
+                  {/each}
+                </div>
+                <div class="flex gap-2 mt-1 justify-between">
+                  <button type="button" class="btn rounded-xl btn-xs btn-outline btn-error" on:click={() => clearCharacters(i)}>🧹 Clear Text</button>
+                  <button type="button" class="btn rounded-xl btn-xs bg-error text-base-300 btn-outline" on:click={closePicker}>❌ Close</button>
+                </div>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>

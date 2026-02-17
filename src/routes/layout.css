@@ -19,3 +19,13 @@
 .drag-handle {
   touch-action: none; /* prevent scrolling while dragging */
 }
+
+/* src/app.css or global styles */
+.copied {
+  /*animation: copyFlash 0.1s ease;*/
+}
+
+@keyframes copyFlash {
+  0% { background-color: initial; }
+  100% { background-color: transparent; }
+}

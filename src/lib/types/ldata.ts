@@ -1,7 +1,7 @@
 // src\lib\types\ldata.ts
 export interface Character {
-  Name: string;
-  Image: string;
+  name: string;
+  image: string;
   role: string;
   alternativeNames: string[];
   tags: string[];
@@ -9,10 +9,10 @@ export interface Character {
 }
 
 export interface ChapterRow {
-  ChapterSE: string;
-  Description: string;
-  Tags: string[];        // real stored data
-  Characters: string;
+  chapterSE: string;
+  description: string;
+  tags: string[];        // real stored data
+  characters: string;
 }
 
 export interface LData {

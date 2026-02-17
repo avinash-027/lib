@@ -477,11 +477,14 @@ class DatabaseService {
 
         // UPDATE & MERGE (Priority: jsonDb or unchanged MD)
         
-        // 1. Tags Merge
+        // 1. Merge -Tags, Badges
         const mergedTags = Array.from(
           new Set([...(existing.tags || []), ...(incoming.tags || [])])
         );
         // console.log("🏷️ Merged Tags:", mergedTags);
+        const mergedBadges = Array.from(
+          new Set([...(existing.badges || []), ...(incoming.badges || [])])
+        );
 
         // 2. Characters Merge (by Name)
         const charMap = new Map();
@@ -493,31 +496,25 @@ class DatabaseService {
 
         // 3. Rows Merge (by ChapterSE)
         const rowMap = new Map();
-        [...(existing.rows || []), ...(incoming.rows || [])].forEach(r => {
-          if (r.ChapterSE) rowMap.set(r.ChapterSE, r);
-        });
+        [...(existing.rows || []), ...(incoming.rows || [])].forEach(r => { if (r.ChapterSE) rowMap.set(r.ChapterSE, r); });
         // console.log("📑 Merged Rows count:", rowMap.size);
 
         // Determine final dataType: 
         // If it was Archived but we get a fresh JSON update, bring it back to Lib
-        const finalType = (existingType === 'archive' && !isIncomingMd) 
-          ? 'Lib' 
-          : incoming.dataType;
+        const finalType = (existingType === 'archive' && !isIncomingMd) ? 'Lib' : incoming.dataType;
 
         // console.log("📌 Final dataType will be:", finalType);
 
         await this.updateEntry(existing.id!, {
-          description: incoming.description?.trim()
-              ? incoming.description.trim()
-              : (existing.description ?? ''),
-          rating: incoming.rating ? incoming.rating : (existing.rating ?? null),
-          badges: incoming.badges,
-          coverImageUrl: incoming.coverImageUrl || existing.coverImageUrl,
-          tags: mergedTags,
+          description: incoming.description?.trim() ? incoming.description.trim() : (existing.description ?? ''),
+          rating: existing.rating ? existing.rating : (incoming.rating ?? null),
+          coverImageUrl: existing.coverImageUrl ?? incoming.coverImageUrl ?? null,
+          category: existing.category || incoming.category || 'All',
           characters: Array.from(charMap.values()),
           rows: Array.from(rowMap.values()),
+          badges: mergedBadges,
+          tags: mergedTags,
           dataType: finalType,
-          category: incoming.category || existing.category || 'All',
           editedAt: new Date().toISOString()
         });
 

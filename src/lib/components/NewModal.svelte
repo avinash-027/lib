@@ -23,9 +23,9 @@
   let characters: EditableCharacter[] = [];
 
   type EditableRow = {
-    ChapterSE: string;
-    Description: string;
-    Characters: string;
+    chapterSE: string;
+    description: string;
+    characters: string;
     _tagsText: string;
   };
   let rows: EditableRow[] = [];
@@ -51,7 +51,7 @@
         // Chapters
         rows = entry.rows.map(r => ({
           ...structuredClone(r),
-          _tagsText: r.Tags.join(', ')
+          _tagsText: r.tags.join(', ')
         }));
       }
     }
@@ -68,7 +68,7 @@
   }
 
   function addChapter() {
-    rows = [...rows, { ChapterSE: '', Description: '', Characters: '',  _tagsText: '' }];
+    rows = [...rows, { chapterSE: '', description: '', characters: '',  _tagsText: '' }];
   }
   function removeChapter(index: number) {
     rows = rows.filter((_, i) => i !== index);
@@ -89,22 +89,22 @@
       category: category || 'All', 
       dataType: 'Lib',
       characters: characters
-        .filter(c => c.Name)
+        .filter(c => c.name)
         .map(c => ({
-          Name: c.Name,
-          Image: c.Image,
+          name: c.name,
+          image: c.image,
           role: c.role,
           description: c.description,
           alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
           tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
         })),
       rows: rows
-        .filter(r => r.ChapterSE)
+        .filter(r => r.chapterSE)
         .map(r => ({
-          ChapterSE: r.ChapterSE,
-          Description: r.Description,
-          Characters: r.Characters,
-          Tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
+          chapterSE: r.chapterSE,
+          description: r.description,
+          characters: r.characters,
+          tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
         }))
     };
 
@@ -231,7 +231,7 @@
             <div class="flex gap-2 w-full">
               <label class="floating-label w-full" for="charName">
                 <span><span class="label-text">Name **</span></span>
-                <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.Name} />
+                <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.name} />
               </label>
               <label class="floating-label w-full" for="charRole">
                 <span><span class="label-text">Role</span></span>
@@ -244,7 +244,7 @@
               <span>
                 <span class="label-text">Image URL</span>
               </span>
-              <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.Image} />
+              <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={character.image} />
             </label>
             <details class="w-full mt-2">
               <summary class="cursor-pointer text-sm font-medium text-primary text-center">Extra Details</summary>
@@ -286,7 +286,7 @@
             <div class="flex gap-2 mb-2">
               <label class="floating-label w-full">
               <span>Chapter *</span>
-              <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.ChapterSE} />
+              <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.chapterSE} />
               </label>
               <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-4 h-4 stroke-current" >
@@ -297,7 +297,7 @@
             <label class="floating-label w-full">
               <span>Description</span>
               <textarea placeholder="Description" class="textarea textarea-bordered w-full textarea-sm mb-2"
-                bind:value={row.Description}></textarea>
+                bind:value={row.description}></textarea>
             </label>
             <label class="floating-label w-full">
               <span>Tags (comma separated)</span>
@@ -314,7 +314,7 @@
                 type="text"
                 placeholder="Characters"
                 class="input input-bordered w-full input-sm"
-                bind:value={row.Characters}
+                bind:value={row.characters}
               />
             </label>
           </div>
