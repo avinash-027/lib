@@ -10,15 +10,16 @@
   
   import { page } from '$app/stores';
   import { dbService } from '$lib/services/db.service';
-  import type { LData } from '$lib/types/ldata';
+  import type { LData, ChapterRow, Character } from '$lib/types/ldata';
   import EditModal from '$lib/components/EditModal.svelte';
   import { theme } from '$lib/stores/theme.store';
   import { RatingLevel, type Rating } from '$lib/index';
+  import { Svg } from '$lib/index';
 
   let entry: LData | null = null;
   let showEditModal = false;
   let entryId: number;
-	
+
 	let showImagePreview = false;
 	
   let rating = 0; // 0–10 scale
@@ -48,7 +49,7 @@
 
   // -----------------------------
   // open modal by section
-  type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category';
+  type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category' | '1chapters1' | '1characters1';
   let editSection: Section = 'All';
 
   function openEdit(section: Section = 'All') {
@@ -154,6 +155,59 @@
       timeStyle: 'short'
     });
   }
+
+  // Add + Button In Details Page
+  type EditableRow = ChapterRow & { _tagsText: string };
+  let selectedChapter: EditableRow | null = null;
+  function openNewChapter() {
+    selectedChapter = {
+      chapterSE: '',
+      description: '',
+      characters: '',
+      tags: [],
+      _tagsText: ''
+    };
+
+    editSection = '1chapters1';
+    showEditModal = true;
+  }
+  function openSingleChapter(row: ChapterRow) {
+    selectedChapter = {
+      ...structuredClone(row),
+      _tagsText: (row.tags ?? []).join(', ')
+    };
+
+    editSection = '1chapters1';
+    showEditModal = true;
+  }
+
+  type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
+  let selectedCharacter: EditableCharacter | null = null;
+  function openNewCharacter() {
+    selectedCharacter = {
+      name: '',
+      role: '',
+      image: '',
+      description: '',
+      tags: [],
+      _tagsString: '',
+      alternativeNames: [],
+      _alternativeNamesString: ''
+    };
+
+    editSection = '1characters1';
+    showEditModal = true;
+  }
+  function openSingleCharacter(char: Character) {
+    selectedCharacter = {
+      ...structuredClone(char),
+      _alternativeNamesString: (char.alternativeNames ?? []).join(', '),
+      _tagsString: (char.tags ?? []).join(', ')
+    };
+
+    editSection = '1characters1';
+    showEditModal = true;
+  }
 </script>
 
 <svelte:head>
@@ -205,7 +259,7 @@
     </div>
   </div>
 	
-	{#if showImagePreview}
+  {#if showImagePreview && entry && entry.coverImageUrl}
 		<div class="fixed inset-0 bg-base-100/69 flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
 			<img src={entry.coverImageUrl} alt={entry.title} class="max-h-full max-w-full rounded-lg shadow-2xl" on:click|stopPropagation />
 			<button class="absolute bottom-5 right-5 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
@@ -306,14 +360,10 @@
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-5 md:p-6">
             <h2 class="card-title">Characters
-              <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Characters" on:click={() => openEdit('characters')}>
-                <svg
-                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              </button>
+              <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Characters" on:click={() => openEdit('characters')}>{@html Svg.edit} </button>
+              <button class="btn btn-ghost btn-sm" on:click={openNewCharacter}> {@html Svg.add} </button>
             </h2>
+
             <div class="flex gap-2 md:gap-4 overflow-x-auto pb-1 scrollbar-hide">
               {#each sortedCharacters as character}
                 <div class="flex flex-col items-center gap-2 flex-shrink-0 w-18 md:w-22 text-center cursor-pointer" on:click={() => toggleCharacter(character.name)}>
@@ -339,15 +389,25 @@
               {/each}
             </div>
             {#each sortedCharacters as character}
-              {#if expandedCharacter === character.name && (character.role || (character.alternativeNames ?? []).length > 0 || (character.tags ?? []).length > 0)}
-                <div use:copyOnDoubleClick={character.name} transition:slide={{ duration: 200 }} class="mt-2 p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
-                  <div class="break-all"><span class="font-semibold">Name:</span> {character.name}</div>
-                  {#if character.role}<div class="break-all"><span class="font-semibold">Role:</span> {character.role}</div>{/if}
-                  {#if (character.alternativeNames ?? []).length > 0}<div class="break-words"><span class="font-semibold">Alternative Names:</span> {character.alternativeNames.join(', ')}</div>{/if}
-                  {#if (character.tags ?? []).length > 0}
-                    <div class="flex flex-wrap gap-1 font-semibold">Tags:{#each character.tags as tag}<span class="badge badge-info badge-xs">{tag}</span>{/each}</div>
-                  {/if}
-                </div>
+              {#if expandedCharacter === character.name && (character.name || character.role || (character.alternativeNames ?? []).length > 0 || (character.tags ?? []).length > 0)}
+              <div transition:slide={{ duration: 200 }} class="">
+                <ul class="list bg-base-200 rounded-xl shadow-md">
+                  <li class="list-row items-center py-1">
+                  <div>
+                  <button class="h-14 w-14 btn btn-soft btn-outline btn-sm rounded-xl" on:click={()=>openSingleCharacter(character)}>{@html Svg.edit} </button>
+                  </div>
+                  <div use:copyOnDoubleClick={character.name} class="p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
+                    <div class="break-all"><span class="font-semibold">Name: </span> <span class="text-success">{character.name}</span></div>
+                    {#if character.role}<div class="break-all"><span class="font-semibold">Role: </span> <span class="text-base-content">{character.role}</span></div>{/if}
+                    {#if character.description}<div class="break-all"><span class="font-semibold">Description: </span> <span class="text-base-content">{character.description}</span></div>{/if}
+                    {#if (character.alternativeNames ?? []).length > 0}<div class="break-words"><span class="font-semibold">Alternative Names: </span> <span class="text-base-content">{character.alternativeNames.join(', ')}</span></div>{/if}
+                    {#if (character.tags ?? []).length > 0}
+                    <div class="flex flex-wrap gap-1 font-semibold">Tags: <span class="text-base-content">{#each character.tags as tag}<span class="badge badge-info badge-xs">{tag}</span>{/each}</span></div>
+                    {/if}
+                  </div>
+                  </li>
+                </ul>
+              </div>
               {/if}
             {/each}
           </div>
@@ -381,14 +441,10 @@
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-3 md:p-6">
             <h2 class="card-title ml-1">Chapters
-              <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Chapters" on:click={() => openEdit('chapters')}>
-                  <svg
-                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current" >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                </button>
+              <button class="btn btn-ghost btn-sm ml-auto" on:click = {() => openEdit('chapters')}> {@html Svg.edit} </button>
+              <button class="btn btn-ghost btn-sm" on:click={openNewChapter}> {@html Svg.add} </button>
             </h2>
+
             <div class="overflow-x-auto text-xs md:text-sm">
               <div class="w-full border border-base-300 rounded-lg">
                 <!-- Header -->
@@ -399,33 +455,34 @@
                 </div>
 
                 <!-- Rows -->
-                <div class="divide-y divide-base-300">
                   {#each sortedRows as row}
-                    <div class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg">
-                      <div class="font-semibold">{row.chapterSE}</div>
-                      <div>{row.characters}</div>
+                    <div class="py-1 px-[2px] bg-base-200">
+                      <div on:click={() => openSingleChapter(row)} aria-label="Edit Chapters"
+                        class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg rounded-b-md cursor-pointer hover:bg-base-200 z-1" > 
+                          <div class="font-semibold break-words">{row.chapterSE}</div>
+                          <div>{row.characters}</div> 
+                        {#if (row.tags ?? []).length > 0}
+                          <div class="flex flex-wrap justify-start content-start gap-1">
+                            {#each row.tags as tag}
+                              <span class="bg-base-300/70 rounded-lg px-1 break-words">{tag}</span>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
                       <div>
-                      {#if (row.tags ?? []).length > 0}
-                        <div class="flex flex-wrap gap-1">
-                          {#each row.tags as tag}
-                            <span class="bg-base-300/70 rounded-lg px-0.5">{tag}</span>
-                          {/each}
-                        </div>
-                      {/if}
+                        {#if row.description}
+                          <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 border-t-0 rounded-b-lg">
+                            <span class="ml-2 text-base-content/60">
+                              ↳ <span class="font-semibold">Description:</span>
+                            </span>
+                            <span class="inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
+                              {@html mdInline(row.description)}
+                            </span>
+                          </div>
+                        {/if}
                       </div>
                     </div>
-                    {#if row.description}
-                      <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 rounded-b-lg">
-                        <span class="ml-2 text-base-content/60">
-                          ↳ <span class="font-semibold">Description:</span>
-                        </span>
-                        <span class="inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
-                          {@html mdInline(row.description)}
-                        </span>
-                      </div>
-                    {/if}
                   {/each}
-                </div>
               </div>
             </div>
           </div>
@@ -463,6 +520,14 @@
 </div>
 
 {#if showEditModal}
-  <EditModal {entryId} {editSection} on:save={handleSave} on:cancel={handleCancel} />
+  <EditModal
+    {entryId}
+    {editSection}
+    {selectedChapter}
+    {selectedCharacter}
+    on:save={handleSave}
+    on:cancel={handleCancel}
+  />
 {/if}
+
 

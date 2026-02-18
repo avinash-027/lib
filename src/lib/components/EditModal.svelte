@@ -6,10 +6,13 @@
   import { categories } from '$lib/stores/categories.store';
   import { RatingLevel, type Rating } from '$lib/index';
 
-  type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category';
+  type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category' | '1chapters1' | '1characters1';
 
   export let entryId: number | null = null;
   export let editSection: Section = 'All';
+
+  export let selectedChapter: EditableRow | null = null;
+  export let selectedCharacter: EditableCharacter | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -91,36 +94,52 @@
     // Chapters
     rows = entry.rows.map(r => ({
       ...structuredClone(r),
-      _tagsText: r.tags.join(', ')
+      _tagsText: (r.tags || []).join(', ')
     }));
+
+    if (editSection === '1chapters1' && selectedChapter) {
+      selectedChapter = { ...structuredClone(selectedChapter) };
+    }
+    if (editSection === '1characters1' && selectedCharacter) {
+      selectedCharacter = { ...structuredClone(selectedCharacter) };
+    }
   });
 
   // character mention picker
-  let activeRowIndex: number | null = null;
-  function toggleCharacterForRow(rowIndex: number, charName: string) {
-    const row = rows[rowIndex];
-    // split existing names by comma
-    const current = row.characters
-      ? row.characters.split(',').map(s => s.trim()).filter(Boolean)
+  let showCharacterPicker = false;
+  function toggleCharacterForSelected(charName: string) {
+    if (!selectedChapter) return;
+
+    const current = selectedChapter.characters
+      ? selectedChapter.characters.split(',').map(s => s.trim()).filter(Boolean)
       : [];
 
     if (current.includes(charName)) {
-      // REMOVE
-      row.characters = current.filter(c => c !== charName).join(', ');
+      selectedChapter.characters = current.filter(c => c !== charName).join(', ');
     } else {
-      // ADD
-      row.characters = [...current, charName].join(', ');
+      selectedChapter.characters = [...current, charName].join(', ');
     }
-    rows = [...rows]; // trigger reactivity
+
+    selectedChapter = { ...selectedChapter }; // trigger reactivity
   }
-  function clearCharacters(rowIndex: number) {
-    rows[rowIndex].characters = '';
-    rows = [...rows]; // trigger reactivity
-    // clearCharactersAndClose()
-    // activeRowIndex = null;
+  function clearSelectedCharacters() {
+    if (!selectedChapter) return;
+    selectedChapter.characters = '';
+    selectedChapter = { ...selectedChapter };
   }
   function closePicker() {
-    activeRowIndex = null;
+    showCharacterPicker = false;
+  }
+  
+  function removeSingleChapter(chapter: EditableRow) {
+    rows = rows.filter(r => r !== chapter);
+    selectedChapter = null;
+    dispatch('save'); // or dispatch('cancel') if you prefer
+  }
+  function removeSingleCharacter(character: EditableCharacter) {
+    characters = characters.filter(c => c !== character);
+    selectedCharacter = null;
+    dispatch('save'); // or dispatch('cancel') if you prefer
   }
 
   function addCharacter() {
@@ -194,11 +213,50 @@
             chapterSE: r.chapterSE,
             description: r.description,
             characters: r.characters,
-            tags: r._tagsText
-              .split(',')
-              .map(t => t.trim())
-              .filter(Boolean)
+            tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
           }));
+        break;
+
+      case '1chapters1':
+        if (!selectedChapter) break;
+
+        const indexRows = rows.findIndex(r => r.chapterSE === selectedChapter!.chapterSE);
+
+        if (indexRows !== -1) {
+          rows[indexRows] = selectedChapter;
+        } else {
+          rows = [...rows, selectedChapter];
+        }
+
+        updateData.rows = rows
+          .filter(r => r.chapterSE)
+          .map(r => ({
+            chapterSE: r.chapterSE,
+            description: r.description,
+            characters: r.characters,
+            tags: r._tagsText.split(',').map(t => t.trim()).filter(Boolean)
+          }));
+        break;
+
+      case '1characters1':
+        if (!selectedCharacter) break;
+
+        const indexChar = characters.findIndex(r => r.name === selectedCharacter!.name);
+
+        if (indexChar !== -1) {
+          characters[indexChar] = selectedCharacter;
+        } else {
+          characters = [...characters, selectedCharacter];
+        }
+
+        updateData.characters = characters.map(c => ({
+          name: c.name,
+          image: c.image,
+          role: c.role,
+          description: c.description,
+          alternativeNames: (c._alternativeNamesString ?? '').split(',').map(s => s.trim()).filter(Boolean),
+          tags: (c._tagsString ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        }));
         break;
 
       case 'description':
@@ -295,7 +353,7 @@
           </select>
         </div>
 
-        <div class="form-control">
+        <div class="form-control bg-base-200 p-2 rounded-md">
           <label for="rating" class="flex flex-wrap gap-2 justify-between">
             <span>
               <span class="label-text font-semibold">Rating <span class="text-info">(0–10)</span></span>
@@ -332,6 +390,8 @@
 
       {#if editSection === 'All' ||  editSection === 'characters'}
         {#if editSection === 'All'}<div class="divider">characters</div>{/if}
+
+        {#if sortedcharacters.length > 0}
         <div class="flex flex-col max-h-[440px] md:max-h-full">
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
@@ -381,10 +441,60 @@
           {/each}
         </div>
         </div>
+        {:else}
+        <i class="text-info p-1">Click <b>+ characters</b> button to add chapter</i>
+        {/if}
+      {/if}
+
+      {#if editSection === '1characters1' && selectedCharacter}
+        <div class="divider">Edit Selected Characters</div>
+        <div class="flex gap-2 flex-wrap mb-2 p-2 rounded-lg border border-base-300 bg-base-200">
+          <div class="flex gap-2 w-full">
+            <label class="floating-label w-full" for="charName">
+              <span><span class="label-text">Name **</span></span>
+              <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={selectedCharacter.name} />
+            </label>
+            <label class="floating-label w-full" for="charRole">
+              <span><span class="label-text">Role</span></span>
+              <input type="text" id="charRole" placeholder="role" class="input input-sm w-full" bind:value={selectedCharacter.role} />
+            </label>
+            <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeSingleCharacter(selectedCharacter)}>✕</button>
+          </div>
+          <label class="floating-label w-full" for="charImgUrl">
+            <span>
+              <span class="label-text">Image URL</span>
+            </span>
+            <input type="text" id="charImgUrl" placeholder="Img URL" class="input input-sm w-full" bind:value={selectedCharacter.image} />
+          </label>
+          <div class="w-full">
+            <div class="space-y-2 mt-2">
+              <label class="floating-label w-full" for="charAltNames">
+                <span>
+                  <span class="label-text">alternativeNames</span>
+                  <span class="label-text-alt text-info italic">: Comma separated</span>
+                </span>
+                <input id="charAltNames" placeholder="Alternative Names [Ex: Name01, name-01]" class="input input-sm w-full" bind:value={selectedCharacter._alternativeNamesString} />
+              </label>
+              <label class="floating-label w-full" for="charTags">
+                <span>
+                  <span class="label-text">char-Tags</span>
+                  <span class="label-text-alt text-info italic">: Comma separated</span>
+                </span>
+                <input id="charTags" placeholder="Tags [Ex: Hero, Villain]" class="input input-sm w-full" bind:value={selectedCharacter._tagsString} />
+              </label>
+              <label class="floating-label w-full" for="chardescription">
+                <span class="label-text">description</span>
+                <textarea id="chardescription" placeholder="description" class="textarea textarea-bordered w-full" bind:value={selectedCharacter.description} ></textarea>
+              </label>
+            </div>
+          </div>
+        </div>
       {/if}
 
       {#if editSection === 'All' || editSection === 'chapters'}
         {#if editSection === 'All'}<div class="divider">Chapters</div>{/if}
+        
+        {#if sortedRows.length > 0}
         <div class="flex flex-col max-h-[440px] md:max-h-full">
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
@@ -408,28 +518,60 @@
               <label class="floating-label w-full"><span>Characters</span>
               <input type="text" placeholder="characters" class="input input-bordered w-full input-sm"
                 bind:value={row.characters} 
-                on:focus={() => activeRowIndex = i}/>
+                />
+                <!-- on:focus={() => activeRowIndex = i} -->
               </label>
-              {#if activeRowIndex === i}
-                <div class="mt-2 p-2 bg-base-300 rounded-xl space-y-2">
-                <div class="flex gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
-                  {#each characters as char}
-                    <button type="button" 
-                      class={`btn rounded-md btn-xs flex-shrink-0 ${row.characters?.split(',').map(s => s.trim()).includes(char.name)? 'btn-info': 'btn-outline'}`}
-                      on:click={() => toggleCharacterForRow(i, char.name)}>
-                      {char.name}
-                    </button>
-                  {/each}
-                </div>
-                <div class="flex gap-2 mt-1 justify-between">
-                  <button type="button" class="btn rounded-xl btn-xs btn-outline btn-error" on:click={() => clearCharacters(i)}>🧹 Clear Text</button>
-                  <button type="button" class="btn rounded-xl btn-xs bg-error text-base-300 btn-outline" on:click={closePicker}>❌ Close</button>
-                </div>
-                </div>
-              {/if}
             </div>
           {/each}
         </div>
+        </div>
+        {:else}
+        <i class="text-info p-1">Click <b>+ Chapter</b> button to add chapter</i>
+        {/if}
+      {/if}
+
+      {#if editSection === '1chapters1' && selectedChapter}
+        <div class="divider">Edit Chapter</div>
+        <div class="card border border-base-300 bg-base-200 p-1.5 md:p-4">
+          <div class="flex gap-2 mb-2">
+            <label class="floating-label w-full"><span>Chapter **</span>
+              <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={selectedChapter.chapterSE}/>
+            </label>
+            <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeSingleChapter(selectedChapter)}>✕</button>
+          </div>
+
+          <label class="floating-label w-full"><span>Characters</span>
+          <input type="text" placeholder="characters" class="input input-bordered w-full input-sm"
+            bind:value={selectedChapter.characters} 
+            on:focus={() => showCharacterPicker = true}/>
+          </label>
+
+          {#if showCharacterPicker}
+            <div class="mt-2 p-2 bg-base-300 rounded-xl space-y-2">
+            <div class="flex gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
+              {#each characters as char}
+                <button type="button" 
+                  class={`btn rounded-md btn-xs flex-shrink-0 ${selectedChapter.characters?.split(',').map(s => s.trim()).includes(char.name)? 'btn-info': 'btn-outline'}`}
+                  on:click={() => toggleCharacterForSelected(char.name)}>
+                  {char.name}
+                </button>
+              {/each}
+            </div>
+            <div class="flex gap-10 mt-2 justify-center">
+              <button type="button" class="btn rounded-xl btn-xs btn-outline btn-error" on:click={clearSelectedCharacters}>🧹 Clear Text</button>
+              <button type="button" class="btn rounded-xl btn-xs bg-error text-base-300 btn-outline" on:click={closePicker}>❌ Close</button>
+            </div>
+            </div>
+          {/if}
+
+          <label class="floating-label mt-2 w-full"><span>Tags (comma separated)</span>
+          <input type="text" placeholder="Tags (comma separated)" class="input input-bordered w-full input-sm mb-2"
+            bind:value={selectedChapter._tagsText}/>
+          </label>
+          <label class="floating-label w-full"><span>Description</span>
+          <textarea placeholder="description" class="textarea textarea-bordered w-full textarea-sm mb-2" 
+            bind:value={selectedChapter.description}></textarea>
+          </label>
         </div>
       {/if}
     </div>

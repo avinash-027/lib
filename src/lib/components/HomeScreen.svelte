@@ -338,9 +338,7 @@ UI Layout
 
   <!-- Add Entry Button -->
   <button class="z-100 btn fixed right-6 bottom-6 btn-circle shadow-xl btn-lg btn-primary" on:click={openAddNew} aria-label="Add new entry">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-6 w-6 stroke-current">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-    </svg>
+    {@html Svg.add}
   </button>
 
   <!-- Selection Toolbar -->
