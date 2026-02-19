@@ -17,6 +17,8 @@
 
   let fileInput: HTMLInputElement;
 
+  export let importing = false;
+
   function handleImportClick() {
     fileInput.click();
   }
@@ -67,7 +69,7 @@
         <ul class="menu bg-base-200 rounded-box gap-1 md:gap-3">
           <li >
             <button on:click={handleImportClick} aria-label="Import JSON" class="btn btn-md btn-ghost">
-              {@html Svg.import} Import JSON
+              {@html Svg.import} Import JSON 
             </button>
           </li>
                 <li>
@@ -85,6 +87,9 @@
             <button on:click={openJSONModal} class="btn btn-md btn-ghost">JSON Format</button>
           </li>
         </ul>
+        {#if importing}
+        <div class="text-left p-4 gap-1"><span class="loading loading-bars loading-sm text-primary"></span>Importing<span class="loading loading-bars loading-sm text-primary"></span></div>
+        {/if}
       </div>
 
       <!-- Modal -->
@@ -101,8 +106,9 @@
         </div>
       </dialog>
 
-      <div class="text-sm text-gray-500">
-        <AutoBackupButton />
+      <div class="text-sm text-gray-500 disable">
+
+        <!-- <AutoBackupButton /> -->
         <div class="divider"></div>
         <p class="font-semibold my-4">🤖 AI × <a href="https://github.com/avinash-027/" target="_blank" class="link link-primary no-underline">User-A027</a> 👨‍💻</p>
       </div>

@@ -2,6 +2,7 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { dbService, entryFingerprint } from '$lib/services/db.service';
+  import { searchQuery } from '$lib/stores/app.store';
   import { goto } from '$app/navigation';
   import { Svg } from '$lib/index';
 
@@ -131,9 +132,14 @@
     }, 1500);
   }
 
+  let importing = false;
   async function handleImport(jsonData: any[]) {
+    importing = true;
+
     await dbService.importFromJSON(jsonData);
     await loadEntries();
+
+    importing = false;
     showDrawer = false;
   }
 
@@ -215,16 +221,23 @@
     selectedEntries = new Set(selectedEntries); // trigger reactivity
   }
 
+  // Add loading state
+  let deleting = false;
   async function deleteSelected() {
     if (selectedEntries.size === 0) return;
+
+    deleting = true; // 🔥 show loader
+
     const ids = Array.from(selectedEntries);
     for (const id of ids) {
       await dbService.deleteEntry(id);
     }
+
     selectedEntries.clear();
     selectedEntries = new Set(selectedEntries); // trigger reactivity
     await loadEntries();
     selectionMode = false;
+    deleting = false; // 🔥 hide loader
   }
 
   function selectAll() {
@@ -257,6 +270,7 @@ UI Layout
       </button>
     </div>
     <div class="flex-1"><span class="text-md md:text-xl font-bold">{MainTitle} <span class="hide-on-320">({$entries.length})</span></span></div>
+
     <div class="flex-none">
       <button class="btn btn-square btn-ghost" aria-label="Toggle search"
         on:click={() => { 
@@ -265,7 +279,7 @@ UI Layout
           }} >
         {@html Svg.search}
       </button>
-      <div class="tooltip tooltip-bottom" data-tip="Open filters">
+      <div class="tooltip-bottom tooltip" data-tip="Open filters">
       <button class="btn btn-square btn-ghost" aria-label="Open filters" 
         on:click={() => { 
           showFilter = !showFilter;
@@ -274,7 +288,7 @@ UI Layout
         {@html Svg.filter}
       </button>
       </div>
-      <div class="tooltip tooltip-bottom" data-tip="Select entries">
+      <div class="tooltip-bottom tooltip" data-tip="Select entries">
       <button class="btn btn-square btn-ghost" 
         on:click={() => {
           if (selectionMode) {
@@ -298,12 +312,12 @@ UI Layout
   </div>
 
   <!-- Search Bar -->
-  {#if showSearch}
+  {#if showSearch || $searchQuery.trim() !== ''}
     <SearchBar bind:show={showSearch} />
   {/if}
 
   <!-- Category Tabs -->
-  <div class="tabs tabs-border flex-nowrap gap-1 overflow-x-auto bg-base-200 px-2 pt-2 pb-1 scrollbar-hide">
+  <div class="tabs tabs-border flex-nowrap gap-3 overflow-x-auto bg-base-200 px-2 pt-2 pb-1 scrollbar-hide">
     <button class="p-0 m-0" title="Toggle unique entries" aria-label="Show unique entries only"
       on:click={() => showUniqueOnly = !showUniqueOnly}>
       {#if showUniqueOnly}
@@ -333,7 +347,6 @@ UI Layout
         </div>
       </button>
     {/each}
- 
   </div>
 
   <!-- Add Entry Button -->
@@ -368,6 +381,12 @@ UI Layout
   <!-- on:cardClick={(e) => openDetail(e.detail)} -->
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
   <div class="flex-1 overflow-auto p-4">
+    {#if deleting}
+      <div class="flex items-center justify-center"><span class="loading loading-dots loading-sm text-primary"></span></div>
+    {/if}
+    {#if importing}
+      <div class="flex items-center justify-center"><span class="loading loading-bars loading-sm text-primary"></span></div>
+    {/if}
     <CardGrid
       entries={displayedEntries}
       {selectionMode}
@@ -387,6 +406,7 @@ UI Layout
 {#if showDrawer}
   <DrawerMenu
     bind:show={showDrawer}
+    {importing}
     on:import={(e) => handleImport(e.detail)}
     on:export={handleExport}
     on:exportMd={handleExportMd}

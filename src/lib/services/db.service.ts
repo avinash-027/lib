@@ -6,7 +6,8 @@ import type { DBSchema, IDBPDatabase } from 'idb';
 // Import application-specific data type
 import type { LData } from '$lib/types/ldata';
 interface Entry {
-  id?: number;
+  id: number;
+  slug: string;
   title: string;
   alternativeTitles: string[];
   coverImageUrl: string | null;
@@ -49,6 +50,32 @@ interface MyDB extends DBSchema {
   };
 }
 
+/**
+ * Generate a stable fingerprint for an entry.
+ * Used to detect duplicates / existing entries.
+ */
+export function entryFingerprint(entry: Partial<LData>): string {
+  const clean = (str?: string) =>
+    (str ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const mainTitle = clean(entry.title);
+
+  // Include slug if present for exact match (highest priority)
+  if (entry.slug) return clean(entry.slug);
+
+  // Include description for MD/manual notes entries
+  const desc = entry.dataType?.toLowerCase() === 'md' ? clean(entry.description) : '';
+
+  // Include alternative titles if present (sorted to prevent ordering issues)
+  const altTitles = Array.from(new Set((entry.alternativeTitles ?? []).map(clean)))
+    .sort()
+    .join('|');
+
+  // Combine parts to produce fingerprint
+  return [mainTitle, desc, altTitles].filter(Boolean).join('::');
+}
+
+/*
 export function entryFingerprint(entry: Partial<LData>) {
   const clean = (str: string) => 
     (str ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -67,16 +94,17 @@ export function entryFingerprint(entry: Partial<LData>) {
   return mainTitle;
 }
 
-// export function entryFingerprint(entry: Partial<LData>) {
-//   return [
-//     (entry.title ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-//     (entry.description ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-//     (entry.alternativeTitles?.join(' ') ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-//     (entry.coverImageUrl ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
-//     (entry.characters?.map((c) => c.Name).join(' ').toLowerCase()),
-//     (entry.rows?.map((c) => c.ChapterSE).join(' ').toLowerCase()),
-//   ].join('|');
-// }
+export function entryFingerprint(entry: Partial<LData>) {
+  return [
+    (entry.title ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+    (entry.description ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+    (entry.alternativeTitles?.join(' ') ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+    (entry.coverImageUrl ?? '').trim().toLowerCase().replace(/\s+/g, ' '),
+    (entry.characters?.map((c) => c.Name).join(' ').toLowerCase()),
+    (entry.rows?.map((c) => c.ChapterSE).join(' ').toLowerCase()),
+  ].join('|');
+}
+*/
 
 class DatabaseService {
   private db: IDBPDatabase<MyDB> | null = null;
@@ -321,6 +349,205 @@ class DatabaseService {
     }
   }
 
+  async getEntryBySlug(slug: string): Promise<LData | null> {
+    await this.ensureInitialized();
+
+    const tx = this.db!.transaction('entries', 'readonly');
+    const store = tx.objectStore('entries');
+
+    const allEntries = await store.getAll(); // small DB, safe to filter in-memory
+    const match = allEntries.find(e => e.slug === slug);
+
+    return match ? this.rowToLData(match) : null;
+  }
+
+  async importFromJSON(entries: LData[]): Promise<void> {
+    await this.ensureInitialized();
+
+    // Load Existing Entries & Categories
+    const existingEntries = await this.getAllEntries();
+    const existingCategories = new Set(await this.getAllCategories());
+
+    // Map fingerprint → existing entry for quick lookup
+    const fingerprintMap = new Map<string, LData>();
+    for (const e of existingEntries) {
+      fingerprintMap.set(entryFingerprint(e), e);
+    }
+
+    // Process Incoming Entries
+    for (const incoming of entries) {
+      const fp = entryFingerprint(incoming);
+      const existing = fingerprintMap.get(fp);
+
+      // Ensure category exists
+      if (incoming.category && incoming.category !== 'All' && !existingCategories.has(incoming.category)) {
+        await this.addCategory(incoming.category);
+        existingCategories.add(incoming.category);
+      }
+
+      // New Entry
+      if (!existing) {
+        const { id, ...withoutId } = incoming;
+        const newId = await this.addEntry({ ...withoutId, dataType: incoming.dataType || 'Lib' });
+        fingerprintMap.set(fp, { ...incoming, id: newId });
+        continue;
+      }
+
+      // Existing Entry → Merge / Update
+      const incomingType = incoming.dataType?.toLowerCase();
+      const existingType = existing.dataType?.toLowerCase();
+      const isIncomingMd = incomingType === 'md';
+      const descMatches = existing.description === incoming.description;
+
+      // Archive old MD entry if changed
+      if (isIncomingMd && !descMatches && existingType !== 'archive') {
+        await this.updateEntry(existing.id!, { dataType: 'archive' });
+        const { id, ...withoutId } = incoming;
+        await this.addEntry({ ...withoutId, dataType: 'Lib' });
+        continue;
+      }
+
+      // Merge & Update Path
+      const mergedTags = Array.from(new Set([...(existing.tags || []), ...(incoming.tags || [])]));
+      const mergedBadges = Array.from(new Set([...(existing.badges || []), ...(incoming.badges || [])]));
+
+      // Merge characters by Name
+      const charMap = new Map();
+      [...(existing.characters || []), ...(incoming.characters || [])].forEach(c => {
+        if (c.Name) charMap.set(c.Name, c);
+      });
+
+      // Merge rows by ChapterSE
+      const rowMap = new Map();
+      [...(existing.rows || []), ...(incoming.rows || [])].forEach(r => {
+        if (r.ChapterSE) rowMap.set(r.ChapterSE, r);
+      });
+
+      // Determine final dataType
+      const finalType = (existingType === 'archive' && !isIncomingMd) ? 'Lib' : incoming.dataType;
+
+      await this.updateEntry(existing.id!, {
+        rating: existing.rating || incoming.rating || null,
+        category: existing.category || incoming.category || 'All',
+        coverImageUrl: existing.coverImageUrl || incoming.coverImageUrl || null,
+        description: incoming.description?.trim() || existing.description || '',
+        characters: Array.from(charMap.values()),
+        rows: Array.from(rowMap.values()),
+        badges: mergedBadges,
+        tags: mergedTags,
+        dataType: finalType,
+        editedAt: new Date().toISOString()
+      });
+    }
+
+    console.log("🏁 IMPORT COMPLETE");
+  }
+  async exportToJSON(): Promise<LData[]> {
+    return this.getAllEntries();
+  }
+  async exportToMarkdown(): Promise<string> {
+    const entries = await this.getAllEntries();
+
+    const md: string[] = [];
+
+    md.push(`# Library Export`);
+    md.push(`_Exported on ${new Date().toLocaleString()}_`);
+    md.push(``);
+
+    for (const entry of entries) {
+      md.push(`---`);
+      md.push(``);
+      md.push(`## ${entry.title}`);
+
+      if (entry.slug) {
+        md.push(`*(${entry.slug})*`);
+        md.push(``);
+      }
+      if (entry.alternativeTitles?.length) {
+        md.push(`*(**AltTitles:** ${entry.alternativeTitles.join(', ')})*`);
+        md.push(``);
+      }
+
+      if (entry.rating != null) { md.push(`- **Rating:** ${entry.rating}*`);}
+      if (entry.category) { md.push(`- **Category:** #${entry.category}`);}
+      if (entry.tags?.length) { md.push(`- **Tags:** ${entry.tags.join(', ')}`);}
+      if (entry.badges?.length) { md.push(`- **Badges:** ${entry.badges.join(', ')}`);}
+      
+      if (entry.description) {
+        md.push(entry.description);
+        md.push(``);}
+
+      // ---- Cover + Characters table ----
+
+      md.push(``);
+      md.push(`|   Cover   | Cover Image |`);
+      md.push(`| :------: | :---------- |`);
+
+      if (entry.coverImageUrl) {
+        md.push(
+          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |  |`
+        );
+      } else {
+        md.push(`| Cover | — |  |`);}
+
+      // Characters
+      if (entry.characters?.length) {
+        md.push(`| Characters |  | role |tags| alternativeNames|`);
+
+        for (const char of entry.characters) {
+          md.push(
+            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
+          );
+        }
+      } else {
+        md.push(`| Characters | — |  |`);}
+
+      md.push(``);
+
+      // ---- Chapter rows table (4 cols) ----
+      if (entry.rows?.length) {
+        md.push(`**Chapters**`);
+        md.push(``);
+        md.push(`| Chapter | Characters  | Description | Tags |`);
+        md.push(`| :-----: | ----------- | ----------- |----- |`);
+
+        for (const row of entry.rows) {
+          md.push(
+            `| ${row.ChapterSE ?? ''} | ${row.Characters ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} |`
+          );}
+
+        md.push(``);
+      }
+    }
+
+    return md.join('\n');
+  }
+
+  // ----------------------------
+  // Mapping
+  // ----------------------------
+
+  private rowToLData(row: Entry): LData {
+    return {
+      id: row.id!,
+      title: row.title,
+      alternativeTitles: row.alternativeTitles ?? [],
+      coverImageUrl: row.coverImageUrl,
+      description: row.description,
+      badges: row.badges ?? [],
+      rating: row.rating ?? 0,
+      createdAt: row.createdAt,
+      openedAt: row.openedAt,
+      editedAt: row.editedAt,
+      tags: row.tags ?? [],
+      characters: row.characters ?? [],
+      rows: row.rows ?? [],
+      category: row.category,
+      dataType: row.dataType
+    };
+  }
+
+/*
   // ----------------------------
   // Import / Export
   // ----------------------------
@@ -329,63 +556,64 @@ class DatabaseService {
   // Imported IDs are explicitly discarded. IndexedDB generates new IDs, Navigation IDs are guaranteed unique. 
   // The new entry is silently skipped during import. No duplicate is created. The existing entry is not modified.
 
-  // async importFromJSON(entries: LData[]): Promise<void> {
-  //   await this.ensureInitialized();
+  async importFromJSON(entries: LData[]): Promise<void> {
+    await this.ensureInitialized();
 
-  //   const existing = await this.getAllEntries();
-  //   const existingFingerprints = new Set(
-  //     existing.map(entryFingerprint)
-  //   );
+    const existing = await this.getAllEntries();
+    const existingFingerprints = new Set(
+      existing.map(entryFingerprint)
+    );
 
-  //   for (const entry of entries) {
-  //     const fp = entryFingerprint(entry);
+    for (const entry of entries) {
+      const fp = entryFingerprint(entry);
 
-  //     // Skip exact duplicates
-  //     if (existingFingerprints.has(fp)) continue;
+      // Skip exact duplicates
+      if (existingFingerprints.has(fp)) continue;
 
-  //     const { id, ...withoutId } = entry;
-  //     await this.addEntry(withoutId);
-  //     existingFingerprints.add(fp);
-  //   }
-  // }
+      const { id, ...withoutId } = entry;
+      await this.addEntry(withoutId);
+      existingFingerprints.add(fp);
+    }
+  }
 
   // ----------------------------
   // If fingerprint matches → update existing entry (keep its id). If no match → insert as new
-  // async importFromJSON(entries: LData[]): Promise<void> {
-  //   await this.ensureInitialized();
 
-  //   const existing = await this.getAllEntries();
+  async importFromJSON(entries: LData[]): Promise<void> {
+    await this.ensureInitialized();
 
-  //   // Map fingerprint → existing entry
-  //   const fingerprintMap = new Map<string, LData>();
+    const existing = await this.getAllEntries();
 
-  //   for (const entry of existing) {
-  //     fingerprintMap.set(entryFingerprint(entry), entry);
-  //   }
+    // Map fingerprint → existing entry
+    const fingerprintMap = new Map<string, LData>();
 
-  //   for (const entry of entries) {
-  //     const fp = entryFingerprint(entry);
+    for (const entry of existing) {
+      fingerprintMap.set(entryFingerprint(entry), entry);
+    }
 
-  //     if (fingerprintMap.has(fp)) {
-  //       // Update existing entry (preserve id + createdAt)
-  //       const existingEntry = fingerprintMap.get(fp)!;
+    for (const entry of entries) {
+      const fp = entryFingerprint(entry);
 
-  //       const { id, ...rest } = entry;
+      if (fingerprintMap.has(fp)) {
+        // Update existing entry (preserve id + createdAt)
+        const existingEntry = fingerprintMap.get(fp)!;
 
-  //       await this.updateEntry(existingEntry.id!, {
-  //         ...rest
-  //       });
+        const { id, ...rest } = entry;
 
-  //     } else {
-  //       // Add as new
-  //       const { id, ...withoutId } = entry;
-  //       const newId = await this.addEntry(withoutId);
+        await this.updateEntry(existingEntry.id!, {
+          ...rest
+        });
 
-  //       // update map so duplicates inside same import also overwrite correctly
-  //       fingerprintMap.set(fp, { ...entry, id: newId });
-  //     }
-  //   }
-  // }
+      } else {
+        // Add as new
+        const { id, ...withoutId } = entry;
+        const newId = await this.addEntry(withoutId);
+
+        // update map so duplicates inside same import also overwrite correctly
+        fingerprintMap.set(fp, { ...entry, id: newId });
+      }
+    }
+  }
 
   async importFromJSON(entries: LData[]): Promise<void> {
     // console.log("🚀 IMPORT START");
@@ -523,107 +751,7 @@ class DatabaseService {
     }
     console.log("🏁 IMPORT COMPLETE");
   }
-  async exportToJSON(): Promise<LData[]> {
-    return this.getAllEntries();
-  }
-  async exportToMarkdown(): Promise<string> {
-    const entries = await this.getAllEntries();
-
-    const md: string[] = [];
-
-    md.push(`# Library Export`);
-    md.push(`_Exported on ${new Date().toLocaleString()}_`);
-    md.push(``);
-
-    for (const entry of entries) {
-      md.push(`---`);
-      md.push(``);
-      md.push(`## ${entry.title}`);
-
-      if (entry.alternativeTitles?.length) {
-        md.push(`*(**AltTitles:** ${entry.alternativeTitles.join(', ')})*`);
-        md.push(``);
-      }
-
-      if (entry.rating != null) { md.push(`- **Rating:** ${entry.rating}*`);}
-      if (entry.category) { md.push(`- **Category:** #${entry.category}`);}
-      if (entry.tags?.length) { md.push(`- **Tags:** ${entry.tags.join(', ')}`);}
-      if (entry.badges?.length) { md.push(`- **Badges:** ${entry.badges.join(', ')}`);}
-      
-      if (entry.description) {
-        md.push(entry.description);
-        md.push(``);}
-
-      // ---- Cover + Characters table ----
-
-      md.push(``);
-      md.push(`|   Cover   | Cover Image |`);
-      md.push(`| :------: | :---------- |`);
-
-      if (entry.coverImageUrl) {
-        md.push(
-          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |  |`
-        );
-      } else {
-        md.push(`| Cover | — |  |`);}
-
-      // Characters
-      if (entry.characters?.length) {
-        md.push(`| Characters |  | role |tags| alternativeNames|`);
-
-        for (const char of entry.characters) {
-          md.push(
-            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
-          );
-        }
-      } else {
-        md.push(`| Characters | — |  |`);}
-
-      md.push(``);
-
-      // ---- Chapter rows table (4 cols) ----
-      if (entry.rows?.length) {
-        md.push(`**Chapters**`);
-        md.push(``);
-        md.push(`| Chapter | Characters  | Description | Tags |`);
-        md.push(`| :-----: | ----------- | ----------- |----- |`);
-
-        for (const row of entry.rows) {
-          md.push(
-            `| ${row.ChapterSE ?? ''} | ${row.Characters ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} |`
-          );}
-
-        md.push(``);
-      }
-    }
-
-    return md.join('\n');
-  }
-
-  // ----------------------------
-  // Mapping
-  // ----------------------------
-
-  private rowToLData(row: Entry): LData {
-    return {
-      id: row.id!,
-      title: row.title,
-      alternativeTitles: row.alternativeTitles ?? [],
-      coverImageUrl: row.coverImageUrl,
-      description: row.description,
-      badges: row.badges ?? [],
-      rating: row.rating ?? 0,
-      createdAt: row.createdAt,
-      openedAt: row.openedAt,
-      editedAt: row.editedAt,
-      tags: row.tags ?? [],
-      characters: row.characters ?? [],
-      rows: row.rows ?? [],
-      category: row.category,
-      dataType: row.dataType
-    };
-  }
-
+*/
 }
 
 // Export singleton instance of database service

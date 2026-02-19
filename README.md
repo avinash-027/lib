@@ -17,7 +17,7 @@ Track your **manhwa, manga, novels, and more** with rich metadata, offline suppo
 - **Filter & Sort:** Sort content by title, created date, edited date, last opened, or rating, in ascending or descending order.
 - **Selection Toolbar (Draggable)**: Multi-select entries with a movable toolbar; select individual or all entries to delete or move them between categories.
 - **Theming**: Multiple themes, Dynamic theme switching
-- **Import / Export**: JSON-based data portability, Manual import/export, Auto-backup support, Data stored locally (IndexedDB), Export to JSON/md
+- **Import / Export**: JSON-based data portability, Manual import/export, Data stored locally (IndexedDB), Export to JSON/md
 - **Offline-First**: Powered by IndexedDB 
 - Lazy loading (images & content)
 
@@ -34,7 +34,7 @@ Track your **manhwa, manga, novels, and more** with rich metadata, offline suppo
 <p>
 
 - There are still errors and warnings: Check Via `npm run check` & `npm run build`
-- AND Import checks fingerprint match; unmatched entries are inserted, matched entries are either archived (MD changed) or merged and updated.
+- AND Import flow ....
 - [How to use GitHub Pages with Sveltekit? :/stackoverflow](https://stackoverflow.com/questions/75796127/how-to-use-github-pages-with-sveltekit)
 - Create a blank file named .nojekyll in your static folder (or the root of **your deployment branch**).
 - `svelte.config.js` : `paths: { base: process.argv.includes('dev') ? '' : "/REPO-NAME" }`

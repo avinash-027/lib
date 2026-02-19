@@ -1,4 +1,4 @@
-<!-- src\lib\components\CardGrid.svelte -->
+<!-- src\lib\components\CardGrid.svelte --> 
 <script lang="ts">
   import { base } from '$app/paths';
 
@@ -6,7 +6,7 @@
   import { createEventDispatcher } from 'svelte';
   import { lozadAction1 } from '$lib/services/lozadAction';
   import { goto } from '$app/navigation';
-	import { Svg } from '$lib';
+  import { Svg } from '$lib';
 
   export let entries: LData[] = [];
   export let selectionMode = false;
@@ -66,7 +66,7 @@
       <button
         class="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow w-full h-full"
         on:click={() => handleCardClick(entry.id)}>
-        <figure class="aspect-[3/4] bg-base-300">
+        <figure class="relative aspect-[3/4] bg-base-300">
           {#if entry.coverImageUrl}
             <img src={entry.coverImageUrl} alt={entry.title} class="w-full h-full object-cover lozad" use:lozadAction1 />
           {:else}
@@ -74,11 +74,11 @@
               {@html Svg.imgIcon}
             </div>
           {/if}
+          {#if entry.dataType}<span class="absolute bottom-0 left-0 rounded-se-md text-[.7em] md:text-sm bg-base-200/85 px-1 py-0">{entry.dataType}</span>{/if}
         </figure>
         <div class="card-body p-2">
-          {#if entry.dataType}<span class="absolute top-1 right-1 rounded-2xl text-[.84em] md:text-sm bg-base-200 px-1 py-0">{entry.dataType}</span>{/if}
           {#if entry.rating !== null && entry.rating > 0}
-          <span class="absolute top-1.5 left-1 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
+          <span class="absolute top-0.5 left-0.5 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
           {/if}
           <h3 class="card-title text-xs sm:text-sm line-clamp-2">{entry.title}</h3>
         </div>

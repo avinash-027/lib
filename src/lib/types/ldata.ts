@@ -16,7 +16,8 @@ export interface ChapterRow {
 }
 
 export interface LData {
-  id?: number;
+  id: number;
+  slug: string;
   title: string;
   alternativeTitles: string[];
   coverImageUrl: string | null;

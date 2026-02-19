@@ -132,12 +132,12 @@
   }
   
   function removeSingleChapter(chapter: EditableRow) {
-    rows = rows.filter(r => r !== chapter);
+    rows = rows.filter(r => r.chapterSE !== chapter.chapterSE);
     selectedChapter = null;
     dispatch('save'); // or dispatch('cancel') if you prefer
   }
   function removeSingleCharacter(character: EditableCharacter) {
-    characters = characters.filter(c => c !== character);
+    characters = characters.filter(c => c.name !== character.name);
     selectedCharacter = null;
     dispatch('save'); // or dispatch('cancel') if you prefer
   }

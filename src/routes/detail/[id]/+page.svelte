@@ -3,10 +3,10 @@
   import { base } from '$app/paths';
 
   import { marked } from 'marked';
-	import { goto } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { copyOnDoubleClick } from '$lib/services/copyOnDoubleClick';
+  import { copyOn } from '$lib/services/copyOn';
   
   import { page } from '$app/stores';
   import { dbService } from '$lib/services/db.service';
@@ -20,8 +20,8 @@
   let showEditModal = false;
   let entryId: number;
 
-	let showImagePreview = false;
-	
+  let showImagePreview = false;
+  
   let rating = 0; // 0–10 scale
 
   // -----------------------------
@@ -209,9 +209,12 @@
     showEditModal = true;
   }
 </script>
-
 <svelte:head>
-  <title>{entry?.title || 'Loading...'} - lib</title>
+  <title>
+    {entry?.title
+      ? `${entry.title.split(' ').slice(0, 2).join(' ')}... - ${(entry.dataType || "")}`
+      : 'Loading... - lib'}
+  </title>
 </svelte:head>
 
 {#if showDeleteModal}
@@ -258,13 +261,13 @@
       </button>
     </div>
   </div>
-	
+  
   {#if showImagePreview && entry && entry.coverImageUrl}
-		<div class="fixed inset-0 bg-base-100/69 flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
-			<img src={entry.coverImageUrl} alt={entry.title} class="max-h-full max-w-full rounded-lg shadow-2xl" on:click|stopPropagation />
-			<button class="absolute bottom-5 right-5 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
-		</div>
-	{/if}
+    <div class="fixed inset-0 bg-base-100/69 flex items-center justify-center z-50 p-4" on:click={() => (showImagePreview = false)} >
+      <img src={entry.coverImageUrl} alt={entry.title} class="max-h-full max-w-full rounded-lg shadow-2xl" on:click|stopPropagation />
+      <button class="absolute bottom-5 right-5 btn btn-circle btn-md btn-ghost text-white bg-base-300" on:click={() => (showImagePreview = false)} >✕</button>
+    </div>
+  {/if}
 
   {#if entry}
     <div class="container mx-auto p-2 md:p-4 max-w-4xl space-y-2 md:space-y-6">
@@ -275,7 +278,7 @@
             <div class="flex-shrink-0">
               {#if entry.coverImageUrl}
                 <img src={entry.coverImageUrl} alt={entry.title} class="w-31 h-46 md:w-35 md:h-55 object-cover rounded-lg" 
-										on:click={() => (showImagePreview = true)}/>
+                    on:click={() => (showImagePreview = true)}/>
               {:else}
                 <div class="w-34 h-50 bg-base-300 rounded-lg flex items-center justify-center text-base-content/20">
                   <svg
@@ -288,10 +291,14 @@
             </div>
 
             <div class="flex-1 min-w-0 flex flex-col justify-center">
-              <h1 use:copyOnDoubleClick={entry?.title} class="text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
+              <h1 use:copyOn={entry?.title} class="text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
+
+              {#if entry.slug}
+              <p use:copyOn={entry.slug} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">{entry.slug}</p>
+              {/if} 
 
               {#if (entry.alternativeTitles ?? []).length > 0}
-              <p use:copyOnDoubleClick={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">
+              <p use:copyOn={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">
                 {entry.alternativeTitles.join(', ')}
               </p>
               {/if} 
@@ -299,7 +306,7 @@
               {#if (entry.badges ?? []).length > 0}
                 <div class="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4" title="badges">
                   {#each entry.badges as badge}
-                    <span use:copyOnDoubleClick={badge} class="badge badge-primary badge-sm md:badge-md">{badge}</span>
+                    <span use:copyOn={badge} class="badge badge-primary badge-sm md:badge-md">{badge}</span>
                   {/each}
                 </div>
               {/if}
@@ -340,14 +347,14 @@
           </div>
           <div>
             {#if (entry.alternativeTitles ?? []).length > 0}
-              <p use:copyOnDoubleClick={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words inline-block md:hidden">
+              <p use:copyOn={entry.alternativeTitles.join(', ')} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words inline-block md:hidden">
                 {entry.alternativeTitles.join(', ')}
               </p>
             {/if} 
             {#if (entry.tags ?? []).length > 0}
               <div class="flex flex-wrap gap-1 md:gap-2 mb-2 mt-1 justify-end" title="tags">
                 {#each entry.tags as tag}
-                  <span use:copyOnDoubleClick={tag} class="badge badge-info badge-sm md:badge-md">{tag}</span>
+                  <span use:copyOn={tag} class="badge badge-info badge-sm md:badge-md">{tag}</span>
                 {/each}
               </div> 
             {/if}
@@ -368,7 +375,7 @@
               {#each sortedCharacters as character}
                 <div class="flex flex-col items-center gap-2 flex-shrink-0 w-18 md:w-22 text-center cursor-pointer" on:click={() => toggleCharacter(character.name)}>
                   {#if character.image}
-                    <img use:copyOnDoubleClick={character.name} src={character.image} alt={character.name} class="w-15 h-15 md:w-18 md:h-18 rounded-full object-cover"/>
+                    <img use:copyOn={character.name} src={character.image} alt={character.name} class="w-15 h-15 md:w-18 md:h-18 rounded-full object-cover"/>
                   {:else}
                     <div class="w-15 h-15 md:w-18 md:h-18 rounded-full bg-base-300 flex items-center justify-center" >
                       <svg
@@ -396,11 +403,14 @@
                   <div>
                   <button class="h-14 w-14 btn btn-soft btn-outline btn-sm rounded-xl" on:click={()=>openSingleCharacter(character)}>{@html Svg.edit} </button>
                   </div>
-                  <div use:copyOnDoubleClick={character.name} class="p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
+                  <div use:copyOn={character.name} class="p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
                     <div class="break-all"><span class="font-semibold">Name: </span> <span class="text-success">{character.name}</span></div>
-                    {#if character.role}<div class="break-all"><span class="font-semibold">Role: </span> <span class="text-base-content">{character.role}</span></div>{/if}
-                    {#if character.description}<div class="break-all"><span class="font-semibold">Description: </span> <span class="text-base-content">{character.description}</span></div>{/if}
-                    {#if (character.alternativeNames ?? []).length > 0}<div class="break-words"><span class="font-semibold">Alternative Names: </span> <span class="text-base-content">{character.alternativeNames.join(', ')}</span></div>{/if}
+                    {#if character.role}
+                    <div class="break-all"><span class="font-semibold">Role: </span> <span class="text-base-content">{character.role}</span></div>{/if}
+                    {#if character.description}
+                    <div class="break-all"><span class="font-semibold">Description: </span> <span class="text-base-content">{character.description}</span></div>{/if}
+                    {#if (character.alternativeNames ?? []).length > 0}
+                    <div class="break-words"><span class="font-semibold">Alternative Names: </span> <span class="text-base-content">{character.alternativeNames.join(', ')}</span></div>{/if}
                     {#if (character.tags ?? []).length > 0}
                     <div class="flex flex-wrap gap-1 font-semibold">Tags: <span class="text-base-content">{#each character.tags as tag}<span class="badge badge-info badge-xs">{tag}</span>{/each}</span></div>
                     {/if}
@@ -417,7 +427,7 @@
       <!-- Description -->
       {#if entry.description}
         <div class="card bg-base-100 shadow-xl">
-          <div class="card-body gap-1 md:gap-2 p-4 md:p-6">
+          <div use:copyOn={entry.description} class="card-body gap-1 md:gap-2 p-4 md:p-6">
             <h2 class="card-title">Description          
               <button class="btn btn-square btn-ghost ml-auto" aria-label="Edit Description" on:click={() => openEdit('description')}>
                 <svg
@@ -529,5 +539,4 @@
     on:cancel={handleCancel}
   />
 {/if}
-
 

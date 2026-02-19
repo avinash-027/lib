@@ -5,6 +5,7 @@
   import type { LData, Character, ChapterRow } from '$lib/types/ldata';
   import { categories } from '$lib/stores/categories.store';
   import { RatingLevel, type Rating } from '$lib/index';
+  import { tick } from 'svelte';
 
   export let entryId: number | null = null;
 
@@ -18,16 +19,34 @@
   let rating= 0;
   let tags = '';
   let category = 'All';
+  let slugExists = false;
+  let slugCheckMessage = '';
+
+  $: currentSlug = title.toLowerCase().trim().replace(/[\s]+/g, '-').replace(/[^a-z0-9\-]/g, '');
+
+  $: if (title) {
+    (async () => {
+      if (entryId !== null) {
+        // Editing: allow same slug as current entry
+        const existingEntry = await dbService.getEntryBySlug(currentSlug);
+        slugExists = !!existingEntry && existingEntry.id !== entryId;
+      } else {
+        // New entry: any existing slug blocks save
+        slugExists = !!(await dbService.getEntryBySlug(currentSlug));
+      }
+
+      slugCheckMessage = slugExists ? 'This title generates a slug that already exists. Change the title name' : '';
+      await tick(); // ensure Svelte updates reactive bindings
+    })();
+  } else {
+    slugExists = false;
+    slugCheckMessage = '';
+  }
 
   type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
   let characters: EditableCharacter[] = [];
 
-  type EditableRow = {
-    chapterSE: string;
-    description: string;
-    characters: string;
-    _tagsText: string;
-  };
+  type EditableRow = ChapterRow & { _tagsText: string };
   let rows: EditableRow[] = [];
 
   onMount(async () => {
@@ -60,7 +79,7 @@
   function addCharacter() {
     characters = [
       ...characters,
-      { Name: '', Image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
+      { name: '', image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
     ];
   }
   function removeCharacter(index: number) {
@@ -68,7 +87,7 @@
   }
 
   function addChapter() {
-    rows = [...rows, { chapterSE: '', description: '', characters: '',  _tagsText: '' }];
+    rows = [...rows, { chapterSE: '', description: '', characters: '', tags: [],  _tagsText: '' }];
   }
   function removeChapter(index: number) {
     rows = rows.filter((_, i) => i !== index);
@@ -77,6 +96,7 @@
   async function handleSave() {
     const entry: Omit<LData, 'id'> = {
       title,
+      slug : title.toLowerCase().trim().replace(/[\s]+/g, '-').replace(/[^a-z0-9\-]/g, ''),
       alternativeTitles: alternativeTitles.split(',').map((t) => t.trim()).filter(Boolean),
       coverImageUrl: coverImageUrl || null,
       description,
@@ -139,6 +159,7 @@
           <span>Title <span class="label-text-alt text-info italic">: required</span></span>
           <input id="newtitle" type="text" placeholder="Title" class="input input-bordered w-full" bind:value={title} required />
         </label>
+        {#if slugExists}<p class="text-error text-sm mt-1">{slugCheckMessage}</p>{/if}
       </div>
 
       <div class="form-control">
@@ -325,7 +346,7 @@
 
     <div class="sticky bottom-0 bg-base-100 border-t border-base-300 p-4 flex gap-2 justify-end">
       <button class="btn btn-outline" on:click={handleCancel}>Cancel</button>
-      <button class="btn btn-primary" on:click={handleSave} disabled={!title || !category}>Save</button>
+      <button class="btn btn-primary" on:click={handleSave} disabled={!title || !category || slugExists}>Save</button>
     </div>
   </div>
 </div>
