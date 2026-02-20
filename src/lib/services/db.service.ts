@@ -114,11 +114,11 @@ class DatabaseService {
   // ----------------------------
   // Initialization
   // ----------------------------
-
   private async initialize(): Promise<void> {
     this.db = await openDB<MyDB>('libdb', 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('entries')) {
+        // id is the primary key. autoIncrement: true tells IndexedDB to generate it.
           const store = db.createObjectStore('entries', {
             keyPath: 'id',
             autoIncrement: true
@@ -465,17 +465,16 @@ class DatabaseService {
       }
       if (entry.alternativeTitles?.length) {
         md.push(`*(**AltTitles:** ${entry.alternativeTitles.join(', ')})*`);
-        md.push(``);
       }
 
-      if (entry.rating != null) { md.push(`- **Rating:** ${entry.rating}*`);}
+      if (entry.rating != null) { md.push(`- **Rating:** ${entry.rating == 0 ? " " : entry.rating }`);}
       if (entry.category) { md.push(`- **Category:** #${entry.category}`);}
       if (entry.tags?.length) { md.push(`- **Tags:** ${entry.tags.join(', ')}`);}
       if (entry.badges?.length) { md.push(`- **Badges:** ${entry.badges.join(', ')}`);}
       
       if (entry.description) {
         md.push(entry.description);
-        md.push(``);}
+      }
 
       // ---- Cover + Characters table ----
 
@@ -485,35 +484,38 @@ class DatabaseService {
 
       if (entry.coverImageUrl) {
         md.push(
-          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |  |`
+          `| Cover | <img src="${entry.coverImageUrl}" width="120" style="aspect-ratio:1/1;object-fit:cover;" /> |`
         );
       } else {
-        md.push(`| Cover | — |  |`);}
+        md.push(`| Cover | — |`);}
+      
+      md.push(``);
 
       // Characters
       if (entry.characters?.length) {
-        md.push(`| Characters |  | role |tags| alternativeNames|`);
+        md.push(`| Characters | Image | Role | Description| Tags | AlternativeNames|`);
+        md.push(`| :------: | :---------- |:---------- |:---------- |:---------- |:---------- |`);
 
         for (const char of entry.characters) {
           md.push(
-            `| ${char.Name} | <img src="${char.Image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
+            `| ${char.name} | <img src="${char.image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role ?? " "} | ${char.description.replace(/^_+/, "") ?? " "} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
           );
         }
       } else {
-        md.push(`| Characters | — |  |`);}
+        md.push(`| Characters | Image | Role | Description| Tags | AlternativeNames|`);
+        md.push(`| :--------: | :---- |:---- |:---------- |:---- |:--------------- |`);
+      }
 
       md.push(``);
 
       // ---- Chapter rows table (4 cols) ----
       if (entry.rows?.length) {
-        md.push(`**Chapters**`);
-        md.push(``);
         md.push(`| Chapter | Characters  | Description | Tags |`);
         md.push(`| :-----: | ----------- | ----------- |----- |`);
 
         for (const row of entry.rows) {
           md.push(
-            `| ${row.ChapterSE ?? ''} | ${row.Characters ?? ''} | ${row.Description ?? ''} | ${(row.Tags ?? []).join(', ')} |`
+            `| ${row.chapterSE ?? ''} | ${row.characters ?? ''} | ${row.description ?? ''} | ${(row.tags ?? []).join(', ')} |`
           );}
 
         md.push(``);
@@ -531,18 +533,19 @@ class DatabaseService {
     return {
       id: row.id!,
       title: row.title,
-      alternativeTitles: row.alternativeTitles ?? [],
+      slug: row.slug,
       coverImageUrl: row.coverImageUrl,
+      alternativeTitles: row.alternativeTitles ?? [],
       description: row.description,
-      badges: row.badges ?? [],
       rating: row.rating ?? 0,
-      createdAt: row.createdAt,
-      openedAt: row.openedAt,
-      editedAt: row.editedAt,
+      category: row.category,
+      badges: row.badges ?? [],
       tags: row.tags ?? [],
       characters: row.characters ?? [],
       rows: row.rows ?? [],
-      category: row.category,
+      createdAt: row.createdAt,
+      openedAt: row.openedAt,
+      editedAt: row.editedAt,
       dataType: row.dataType
     };
   }

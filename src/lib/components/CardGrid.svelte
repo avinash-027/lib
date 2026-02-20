@@ -40,17 +40,19 @@
 <!-- <div class="grid gap-2 md:gap-4 grid-cols-{gridCols} sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10"> -->
 
 {#if entries.length === 0}
-  <div class="px-1 w-full opacity-80 text-sm h-65 md:h-55 flex items-end justify-center text-base-content/50">
+  <div class="px-1 w-full opacity-80 text-sm h-65 md:h-55 flex items-end justify-center text-base-content/50 scroll-smooth">
     <div> 
       No entries found.
       <ul class="list-disc list-inside mt-1">
         <li>Add new entries by clicking the <b>"+"</b> button.</li>
-        <li>To Manage categories, click the "Categories" button in the <b>Drawer Menu</b>.</li>
+        <li>To Manage categories, click the "Categories" button in the <b>Menu</b>.</li>
+        <li class="text-success mt-1">ID (auto-generated) and slug are <b>unique identifiers</b></li>
+        <li class="text-success"><b>Import</b> uses fingerprint matching (slug prioritized)</li>
       </ul> 
     </div>
   </div>
 {:else}
-<div class={`grid gap-2 ${colClasses[gridCols]} md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10`}>
+<div class={`grid gap-2 ${colClasses[gridCols]} md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 scroll-smooth`}>
   {#each entries as entry (entry.id)}
     <div class="relative">
       {#if selectionMode}

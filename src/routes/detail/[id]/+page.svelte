@@ -38,15 +38,30 @@
   const mainRoles = ['main', 'lead', 'mc', 'fmc', 'protagonist'];
 
   // Sorted characters array
-  $: sortedCharacters = entry?.characters
-    ? [...entry.characters].sort((a, b) => {
-        const aPriority = mainRoles.includes(a.role.toLowerCase()) ? 0 : 1;
-        const bPriority = mainRoles.includes(b.role.toLowerCase()) ? 0 : 1;
-        // if both same priority, keep original order
-        return aPriority - bPriority;
-      })
-    : [];
+  // $: sortedCharacters = entry?.characters
+  //   ? [...entry.characters].sort((a, b) => {
+  //       const aPriority = mainRoles.includes(a.role.toLowerCase()) ? 0 : 1;
+  //       const bPriority = mainRoles.includes(b.role.toLowerCase()) ? 0 : 1;
+  //       // if both same priority, keep original order
+  //       return aPriority - bPriority;
+  //     })
+  //   : [];
+$: sortedCharacters = (entry?.characters ?? [])
+  .slice() // Create a shallow copy to avoid mutating the store/prop
+  .sort((a, b) => {
+    // 1. Safe access to roles with fallbacks to empty strings
+    const roleA = (a?.role ?? '').toLowerCase();
+    const roleB = (b?.role ?? '').toLowerCase();
 
+    // 2. Determine priority (0 for main roles, 1 for others)
+    // Uses optional chaining on mainRoles just in case it's not loaded
+    const aPriority = mainRoles?.includes(roleA) ? 0 : 1;
+    const bPriority = mainRoles?.includes(roleB) ? 0 : 1;
+
+    // 3. Sort by priority
+    return aPriority - bPriority;
+  });
+  
   // -----------------------------
   // open modal by section
   type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category' | '1chapters1' | '1characters1';
@@ -157,8 +172,19 @@
   }
 
   // Add + Button In Details Page
-  type EditableRow = ChapterRow & { _tagsText: string };
+  type EditableRow = ChapterRow & { 
+    _tagsText: string;
+    _originalChapterSE?: string;  // optional, because new rows won’t have it
+  };
+  type EditableCharacter = Character & { 
+    _tagsString: string;
+    _alternativeNamesString: string;
+    _originalName?: string;  // optional,because new ones won’t have it
+  };
+
   let selectedChapter: EditableRow | null = null;
+  let selectedCharacter: EditableCharacter | null = null;
+
   function openNewChapter() {
     selectedChapter = {
       chapterSE: '',
@@ -174,15 +200,13 @@
   function openSingleChapter(row: ChapterRow) {
     selectedChapter = {
       ...structuredClone(row),
-      _tagsText: (row.tags ?? []).join(', ')
+      _tagsText: (row.tags ?? []).join(', '),
+      _originalChapterSE: row.chapterSE  // <<< track original
     };
 
     editSection = '1chapters1';
     showEditModal = true;
   }
-
-  type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
-  let selectedCharacter: EditableCharacter | null = null;
   function openNewCharacter() {
     selectedCharacter = {
       name: '',
@@ -202,12 +226,69 @@
     selectedCharacter = {
       ...structuredClone(char),
       _alternativeNamesString: (char.alternativeNames ?? []).join(', '),
-      _tagsString: (char.tags ?? []).join(', ')
+      _tagsString: (char.tags ?? []).join(', '),
+      _originalName: char.name // <<< track original
     };
 
     editSection = '1characters1';
     showEditModal = true;
   }
+  async function removeCharacter(remChar: Character) {
+    if (!entry || !entryId) return;
+
+    const updatedCharacters = entry.characters.filter(
+      (char) => char !== remChar
+    );
+    // Update DB
+    await dbService.updateEntryPartial(entryId, {
+      characters: updatedCharacters
+    });
+    // Update local state
+    entry = { ...entry, characters: updatedCharacters };
+    expandedCharacter = null;
+  }
+  let chapterDeleteMode = false;
+  function removeChapters() {
+    chapterDeleteMode = !chapterDeleteMode;
+  }
+  async function removeSingleChapter(chapterSE: string) {
+    if (!entry || !entryId) return;
+    // const confirmed = confirm(`Delete chapter "${chapterSE}"?`);
+    // if (!confirmed) return;
+
+    const updatedRows = entry.rows.filter(
+      (row) => row.chapterSE !== chapterSE
+    );
+    await dbService.updateEntryPartial(entryId, {
+      rows: updatedRows
+    });
+    entry = {
+      ...entry,
+      rows: updatedRows
+    };
+    if (updatedRows.length == 0) {chapterDeleteMode = false}
+  }
+
+  let chapterContainer: HTMLElement | null = null;
+
+  import { onDestroy } from 'svelte';
+
+  function handleClickOutside(event: MouseEvent) {
+    if (!chapterDeleteMode) return;
+    if (!chapterContainer) return;
+
+    if (!chapterContainer.contains(event.target as Node)) {
+      chapterDeleteMode = false;
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener('click', handleClickOutside);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('click', handleClickOutside);
+  });
 </script>
 <svelte:head>
   <title>
@@ -270,7 +351,7 @@
   {/if}
 
   {#if entry}
-    <div class="container mx-auto p-2 md:p-4 max-w-4xl space-y-2 md:space-y-6">
+    <div class="container scroll-smooth mx-auto p-2 md:p-4 max-w-4xl space-y-2 md:space-y-6">
       <!-- General -->
       <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-4 md:p-6">
@@ -381,13 +462,12 @@
                       <svg
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                         class="w-8 h-8 stroke-current text-base-content/20" >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
                   {/if}
                   <div class="text-sm text-center leading-tight break-all line-clamp-2">
-                    {#if mainRoles.includes(character.role.toLowerCase())}
+                    {#if mainRoles.includes(character.role?.toLowerCase() ?? '')}
                       <span class="indicator-item indicator-bottom indicator-center status status-info"></span>
                     {/if}
                     <span>{character.name}</span>
@@ -400,8 +480,9 @@
               <div transition:slide={{ duration: 200 }} class="">
                 <ul class="list bg-base-200 rounded-xl shadow-md">
                   <li class="list-row items-center py-1">
-                  <div>
-                  <button class="h-14 w-14 btn btn-soft btn-outline btn-sm rounded-xl" on:click={()=>openSingleCharacter(character)}>{@html Svg.edit} </button>
+                  <div class="flex flex-col md:flex-row md:gap-1">
+                  <button class="h-10 w-10 btn btn-soft btn-outline btn-sm border border-b-1 border-base-300 rounded-b-none rounded-t-xl md:rounded-xl" on:click={()=>openSingleCharacter(character)}>{@html Svg.edit} </button>
+                  <button class="h-10 w-10 btn btn-soft btn-outline btn-sm border border-1 border-base-300 rounded-t-none rounded-b-xl md:rounded-xl" on:click={()=>removeCharacter(character)}>{@html Svg.delete} </button>
                   </div>
                   <div use:copyOn={character.name} class="p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
                     <div class="break-all"><span class="font-semibold">Name: </span> <span class="text-success">{character.name}</span></div>
@@ -449,50 +530,62 @@
       <!-- Chapters Rows-->
       {#if (entry.rows ?? []).length > 0}
         <div class="card bg-base-100 shadow-xl">
-          <div class="card-body p-3 md:p-6">
+          <div class="card-body p-3 md:p-6" bind:this={chapterContainer}>
             <h2 class="card-title ml-1">Chapters
               <button class="btn btn-ghost btn-sm ml-auto" on:click = {() => openEdit('chapters')}> {@html Svg.edit} </button>
               <button class="btn btn-ghost btn-sm" on:click={openNewChapter}> {@html Svg.add} </button>
+              <button class="btn btn-ghost btn-sm rounded-full" on:click={removeChapters} 
+              class:text-base-300={chapterDeleteMode} class:bg-error={chapterDeleteMode}> {@html Svg.delete} </button>
             </h2>
 
             <div class="overflow-x-auto text-xs md:text-sm">
-              <div class="w-full border border-base-300 rounded-lg">
+              <div class="w-full border border-base-300 bg-base-200 rounded-lg">
                 <!-- Header -->
-                <div class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 font-semibold bg-base-200 rounded-t-lg">
+                <div class="grid grid-cols-[15vw_2fr_3fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 font-semibold bg-base-200 rounded-t-lg">
                   <div>Chapter</div>
                   <div>Characters</div>
                   <div>Tags</div>
                 </div>
 
                 <!-- Rows -->
-                  {#each sortedRows as row}
-                    <div class="py-1 px-[2px] bg-base-200">
-                      <div on:click={() => openSingleChapter(row)} aria-label="Edit Chapters"
-                        class="grid grid-cols-[16vw_1fr_2fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg rounded-b-md cursor-pointer hover:bg-base-200 z-1" > 
-                          <div class="font-semibold break-words">{row.chapterSE}</div>
-                          <div>{row.characters}</div> 
+                {#each sortedRows as row}
+                  <div class="py-1 px-[2px] bg-base-200 rounded-lg">
+                  
+                    <div class="relative">
+                    <div 
+                      on:click={() => !chapterDeleteMode && openSingleChapter(row)} aria-label="Edit Chapters"
+                      class="grid grid-cols-[15vw_2fr_3fr] md:grid-cols-[7vw_1fr_2fr] gap-2 md:gap-4 p-2 md:p-4 bg-base-100 divide-x-[2px] divide-base-content/10 border border-base-content/10 rounded-t-lg rounded-b-md cursor-pointer hover:bg-base-200 z-1"
+                      class:bg-base-300={chapterDeleteMode}> 
+
+                        <div class="font-semibold break-words" class:opacity-70={chapterDeleteMode}>{row.chapterSE}</div>
+                        <div class="break-all" class:opacity-70={chapterDeleteMode}>{row.characters}</div> 
                         {#if (row.tags ?? []).length > 0}
-                          <div class="flex flex-wrap justify-start content-start gap-1">
+                          <div class="flex flex-wrap justify-start content-start gap-1" class:opacity-70={chapterDeleteMode}>
                             {#each row.tags as tag}
-                              <span class="bg-base-300/70 rounded-lg px-1 break-words">{tag}</span>
+                              <span class="bg-base-300/70 rounded-lg px-1 break-all">{tag}</span>
                             {/each}
                           </div>
                         {/if}
-                      </div>
-                      <div>
-                        {#if row.description}
-                          <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 border-t-0 rounded-b-lg">
-                            <span class="ml-2 text-base-content/60">
-                              ↳ <span class="font-semibold">Description:</span>
-                            </span>
-                            <span class="inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
-                              {@html mdInline(row.description)}
-                            </span>
-                          </div>
+                        {#if chapterDeleteMode}<button class="absolute top-1 md:top-2 right-2 btn btn-xs md:btn-sm btn-circle btn-error z-10" on:click|stopPropagation={() => removeSingleChapter(row.chapterSE)} > ✕ </button>
                         {/if}
+
                       </div>
                     </div>
-                  {/each}
+
+                    <div>
+                      {#if row.description}
+                        <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 border-t-0 rounded-b-lg">
+                          <span class="ml-2 text-base-content/60">
+                            ↳ <span class="font-semibold">Description:</span>
+                          </span>
+                          <span class="ml-1 break-words inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
+                            {@html mdInline(row.description)}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
               </div>
             </div>
           </div>

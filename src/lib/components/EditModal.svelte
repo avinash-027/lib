@@ -1,10 +1,10 @@
 <!-- src\lib\components\EditModal.svelte -->
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher, tick } from 'svelte';
   import { dbService } from '$lib/services/db.service';
   import type { LData, Character, ChapterRow } from '$lib/types/ldata';
   import { categories } from '$lib/stores/categories.store';
-  import { RatingLevel, type Rating } from '$lib/index';
+  import { RatingLevel, Svg, type Rating } from '$lib/index';
 
   type Section = 'All' | 'characters' | 'chapters' | 'description' | 'category' | '1chapters1' | '1characters1';
 
@@ -25,12 +25,19 @@
   let tags = '';
   let category = 'All';
 
-  type EditableCharacter = Character & { _alternativeNamesString: string, _tagsString:string };
-  let characters: EditableCharacter[] = [];
-
   // UI rows with editable tag string
-  type EditableRow = ChapterRow & { _tagsText: string };
+  type EditableRow = ChapterRow & { 
+    _tagsText: string;
+    _originalChapterSE?: string;  // optional, because new rows won’t have it
+  };
+  type EditableCharacter = Character & { 
+    _tagsString: string;
+    _alternativeNamesString: string;
+    _originalName?: string;  // optional, same reason
+  };
+
   let rows: EditableRow[] = [];
+  let characters: EditableCharacter[] = [];
 
   // -----------------------------
   // Sorted characters (based on editable characters)
@@ -130,37 +137,47 @@
   function closePicker() {
     showCharacterPicker = false;
   }
-  
+  /* Not using
   function removeSingleChapter(chapter: EditableRow) {
-    rows = rows.filter(r => r.chapterSE !== chapter.chapterSE);
+    if (!chapter._originalChapterSE) return; // safety check
+    rows = rows.filter(r => r.chapterSE !== chapter._originalChapterSE);
     selectedChapter = null;
-    dispatch('save'); // or dispatch('cancel') if you prefer
+    dispatch('save');
   }
   function removeSingleCharacter(character: EditableCharacter) {
-    characters = characters.filter(c => c.name !== character.name);
+    if (!character._originalName) return; // safety check
+    characters = characters.filter(c => c.name !== character._originalName);
     selectedCharacter = null;
-    dispatch('save'); // or dispatch('cancel') if you prefer
+    dispatch('save');
   }
+  */
 
-  function addCharacter() {
+  let lastCharacterNameInput: HTMLInputElement | null = null;
+  let lastChapterInput: HTMLInputElement | null = null;
+
+  async function addCharacter() {
     characters = [
       ...characters,
       { name: '', image: '', role: '', alternativeNames: [], tags: [], description: '', _alternativeNamesString: '', _tagsString: '' }
     ];
+
+    await tick(); // wait DOM update
+    lastCharacterNameInput?.focus();
   }
   function removeCharacter(index: number) {
     characters = characters.filter((_, i) => i !== index);
   }
 
-  function addChapter() {
+  async function addChapter() {
     rows = [
       ...rows,
       { chapterSE: '', description: '', characters: '', tags: [], _tagsText: ''}
     ];
+    await tick(); // wait DOM update
+    lastChapterInput?.focus();
   }
-  function removeChapter(i: number) {
-    rows = rows.filter((_, idx) => idx !== i);
-  }
+  function removeChapter(i: number) { rows = rows.filter((_, idx) => idx !== i); }
+  // function removeChapter(r: ChapterRow) { rows = rows.filter((row, idx) => row !== r); }
 
   async function handleSave() {
     if (!entryId) return;
@@ -220,7 +237,7 @@
       case '1chapters1':
         if (!selectedChapter) break;
 
-        const indexRows = rows.findIndex(r => r.chapterSE === selectedChapter!.chapterSE);
+        const indexRows = rows.findIndex(r => r.chapterSE === selectedChapter!._originalChapterSE);
 
         if (indexRows !== -1) {
           rows[indexRows] = selectedChapter;
@@ -241,7 +258,7 @@
       case '1characters1':
         if (!selectedCharacter) break;
 
-        const indexChar = characters.findIndex(r => r.name === selectedCharacter!.name);
+        const indexChar = characters.findIndex(r => r.name === selectedCharacter!._originalName);
 
         if (indexChar !== -1) {
           characters[indexChar] = selectedCharacter;
@@ -395,18 +412,21 @@
         <div class="flex flex-col max-h-[440px] md:max-h-full">
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
-          {#each sortedcharacters as character, i}
+          <!-- {#each sortedcharacters as character, i} -->
+          {#each characters as character, i}
             <div class="flex gap-2 flex-wrap mb-2 p-2 rounded-lg border border-base-300 bg-base-200">
               <div class="flex gap-2 w-full">
                 <label class="floating-label w-full" for="charName">
                   <span><span class="label-text">Name **</span></span>
-                  <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" bind:value={character.name} />
+                  <input type="text" id="charName" placeholder="Name *" class="input input-sm w-full" 
+                    bind:value={character.name}
+                    bind:this={lastCharacterNameInput} />
                 </label>
                 <label class="floating-label w-full" for="charRole">
                   <span><span class="label-text">Role</span></span>
                   <input type="text" id="charRole" placeholder="role" class="input input-sm w-full" bind:value={character.role} />
                 </label>
-                <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>✕</button>
+                <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeCharacter(i)}>{@html Svg.delete}</button>
               </div>
               <label class="floating-label w-full" for="charImgUrl">
                 <span>
@@ -458,7 +478,7 @@
               <span><span class="label-text">Role</span></span>
               <input type="text" id="charRole" placeholder="role" class="input input-sm w-full" bind:value={selectedCharacter.role} />
             </label>
-            <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeSingleCharacter(selectedCharacter)}>✕</button>
+            <!-- <button class="btn btn-sm btn-square btn-error btn-outline" on:click={() => removeSingleCharacter(selectedCharacter)}>{@html Svg.delete}</button> -->
           </div>
           <label class="floating-label w-full" for="charImgUrl">
             <span>
@@ -498,13 +518,16 @@
         <div class="flex flex-col max-h-[440px] md:max-h-full">
         <!-- Scrollable list -->
         <div class="space-y-2 p-1 rounded-lg bg-base-300 overflow-y-auto pr-1">
-          {#each sortedRows as row, i}
+          <!-- {#each sortedRows as row, i} -->
+          {#each rows as row, i}
             <div class="card border border-base-300 bg-base-200 p-1.5 md:p-4">
               <div class="flex gap-2 mb-2">
                 <label class="floating-label w-full"><span>Chapter **</span>
-                <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={row.chapterSE}/>
+                <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" 
+                bind:value={row.chapterSE}
+                bind:this={lastChapterInput}/>
                 </label>
-                <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>✕</button>
+                <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeChapter(i)}>{@html Svg.delete}</button>
               </div>
 
               <label class="floating-label w-full"><span>Description</span>
@@ -537,7 +560,7 @@
             <label class="floating-label w-full"><span>Chapter **</span>
               <input type="text" placeholder="Chapter (e.g., 1-5)" class="input input-bordered w-full input-sm flex-1" bind:value={selectedChapter.chapterSE}/>
             </label>
-            <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeSingleChapter(selectedChapter)}>✕</button>
+            <!-- <button class="btn btn-square btn-error btn-outline btn-sm" on:click={() => removeSingleChapter(selectedChapter)}>{@html Svg.delete}</button> -->
           </div>
 
           <label class="floating-label w-full"><span>Characters</span>

@@ -4,6 +4,7 @@
   {
     "id": 2,
     "title": "Solo Leveling",
+    "slug": "solo-leveling",
     "alternativeTitles": [ "Only I Level Up", "Na Honja Level Up" ],
     "coverImageUrl": "https://example.com/covers/solo-leveling.jpg",
     "description": "In a world where gates connect Earth to deadly dungeons, the weakest hunter awakens a mysterious system that allows him to level up alone.",

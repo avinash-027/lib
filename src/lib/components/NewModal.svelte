@@ -35,7 +35,7 @@
         slugExists = !!(await dbService.getEntryBySlug(currentSlug));
       }
 
-      slugCheckMessage = slugExists ? 'This title generates a slug that already exists. Change the title name' : '';
+      slugCheckMessage = slugExists ? `This title generates a slug(${currentSlug}) that already Exists. Change title text` : '';
       await tick(); // ensure Svelte updates reactive bindings
     })();
   } else {

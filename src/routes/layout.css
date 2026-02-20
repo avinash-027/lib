@@ -6,7 +6,7 @@
    themes: all;
  }
 
-/* Hide scrollbar but still scrollable */
+/* Hide scrollbar */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;     /* Firefox */
@@ -14,6 +14,40 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;             /* Chrome, Safari, Opera */
 }
+
+@media(min-width: 400px){
+  /* Show scrollbar (default) */
+  .scrollbar-hide {
+    scrollbar-width: thin;     /* Firefox */
+    -ms-overflow-style: auto;  /* IE and Edge */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: block;           /* Chrome, Safari, Opera */
+    cursor: pointer;
+  }
+}
+
+/* 
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 6px;
+  border: 3px solid #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+*/
 
 /* Prevent touch scrolling while dragging */
 .drag-handle {

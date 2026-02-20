@@ -23,7 +23,6 @@
 
   let MainTitle = 'Lib';
   
-  let showSearch = false;
   let showFilter = false;
   let showDrawer = false;
   let showEditModal = false;
@@ -36,6 +35,11 @@
   let selectionMode = false;
 
   const dispatch = createEventDispatcher();
+
+  let showSearch = false;
+  $: if ($searchQuery.trim().length > 0) {
+    showSearch = true;
+  }
 
   // showUniqueOnly 
   let showUniqueOnly = false;
@@ -103,7 +107,7 @@
   }
 
   function openDetail(id: number) {
-    window.location.href = `/detail/${id}`;
+    goto(`/detail/${id}`);
   }
 
   async function handleSave() {
@@ -312,7 +316,7 @@ UI Layout
   </div>
 
   <!-- Search Bar -->
-  {#if showSearch || $searchQuery.trim() !== ''}
+  {#if showSearch}
     <SearchBar bind:show={showSearch} />
   {/if}
 
@@ -382,7 +386,11 @@ UI Layout
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
   <div class="flex-1 overflow-auto p-4">
     {#if deleting}
-      <div class="flex items-center justify-center"><span class="loading loading-dots loading-sm text-primary"></span></div>
+      <div class="flex items-center justify-center">
+        <span class="loading loading-dots loading-sm text-primary"></span>
+        <span class="loading loading-ring loading-sm text-primary"></span>
+        <span class="loading loading-dots loading-sm text-primary"></span>
+      </div>
     {/if}
     {#if importing}
       <div class="flex items-center justify-center"><span class="loading loading-bars loading-sm text-primary"></span></div>
