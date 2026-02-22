@@ -57,16 +57,16 @@
     <div class="relative">
       {#if selectionMode}
         <button type="button" 
-          class="rounded-xl absolute inset-0 z-10 flex items-center justify-center bg-black/20 cursor-pointer transition-opacity"
+          class="rounded-xl absolute inset-0 z-10 flex items-center justify-center bg-black/30 text-base-accent cursor-pointer transition-opacity"
           class:selected={selectedEntries.has(entry.id)}
           on:click={(e) => { e.stopPropagation(); toggleSelect(entry.id); }} >
           {#if selectedEntries.has(entry.id)}
-            {@html Svg.selectTick}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-12 h-12 bg-base-300/50 rounded-xl  drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7M5 7l4 4L19 1"/></svg>
           {/if}
         </button>
       {/if}
       <button
-        class="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow w-full h-full"
+        class="group card bg-base-100 shadow-xl cursor-pointer hover:shadow-info/30 transition-[1px] w-full h-full transition duration-150 ease-in-out hover:-translate-y-1 hover:scale-102"
         on:click={() => handleCardClick(entry.id)}>
         <figure class="relative aspect-[3/4] bg-base-300">
           {#if entry.coverImageUrl}
@@ -78,14 +78,20 @@
           {/if}
           {#if entry.dataType}<span class="absolute bottom-0 left-0 rounded-se-md text-[.7em] md:text-sm bg-base-200/85 px-1 py-0">{entry.dataType}</span>{/if}
         </figure>
+
+        {#if entry.category && entry.category.trim().toLowerCase() !== "all"}
+        <span class="z-11 absolute -top-[5px] right-1 rounded-full text-[.6em] w-1/2 font-semibold px-1 py-0 line-clamp-1 break-words md:text-sm bg-info text-base-300 group-hover:hidden">
+          {entry.category}</span>
+        {/if}
         <div class="card-body p-2">
           {#if entry.rating !== null && entry.rating > 0}
-          <span class="absolute top-0.5 left-0.5 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
+          <span class="absolute top-1 left-1 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
           {/if}
-          <h3 class="card-title text-xs sm:text-sm line-clamp-2">{entry.title}</h3>
+          <div class="card-title text-xs sm:text-sm line-clamp-2">{entry.title}</div>
         </div>
       </button>
     </div>
   {/each}
 </div>
 {/if}
+<!-- rotate-270 origin-right -->

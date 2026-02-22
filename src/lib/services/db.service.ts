@@ -348,6 +348,28 @@ class DatabaseService {
       }
     }
   }
+  async renameCategoryRecord(oldName: string, newName: string) {
+    await this.ensureInitialized();
+
+    if (oldName === 'All' || newName === 'All') return;
+
+    const tx = this.db!.transaction('categories', 'readwrite');
+    const store = tx.objectStore('categories');
+
+    const existing = await store.get(oldName);
+    if (!existing) return;
+
+    // Delete old key
+    await store.delete(oldName);
+
+    // Insert new key
+    await store.put({
+      name: newName,
+      createdAt: existing.createdAt
+    });
+
+    await tx.done;
+  }
 
   async getEntryBySlug(slug: string): Promise<LData | null> {
     await this.ensureInitialized();
@@ -388,7 +410,7 @@ class DatabaseService {
       // New Entry
       if (!existing) {
         const { id, ...withoutId } = incoming;
-        const newId = await this.addEntry({ ...withoutId, dataType: incoming.dataType || 'Lib' });
+        const newId = await this.addEntry({ ...withoutId, dataType: incoming.dataType.trim() || 'Lib', category: incoming.category.trim() || "All" });
         fingerprintMap.set(fp, { ...incoming, id: newId });
         continue;
       }

@@ -1,7 +1,7 @@
 <!-- src\routes\detail\[id]\+page.svelte -->
 <script lang="ts">
   import { base } from '$app/paths';
-
+  import { tick } from 'svelte';
   import { marked } from 'marked';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -32,6 +32,22 @@
       expandedCharacter = expandedCharacter === name ? null : name;
   }
 
+  // description -Toggling expand/collapse on click
+  let expanded = false;
+  let showToggle = false;
+  let descEl: HTMLDivElement | null = null;
+
+  // After render, check if content exceeds 3 lines
+  async function checkLines() {
+    await tick();
+    if (descEl) {
+      showToggle = descEl.scrollHeight > descEl.clientHeight;
+    }
+  }
+  $: if (entry?.description) {
+    checkLines();
+  }
+
   // -----------------------------
   // Sorted characters
   // Define priority roles
@@ -46,21 +62,21 @@
   //       return aPriority - bPriority;
   //     })
   //   : [];
-$: sortedCharacters = (entry?.characters ?? [])
-  .slice() // Create a shallow copy to avoid mutating the store/prop
-  .sort((a, b) => {
-    // 1. Safe access to roles with fallbacks to empty strings
-    const roleA = (a?.role ?? '').toLowerCase();
-    const roleB = (b?.role ?? '').toLowerCase();
+  $: sortedCharacters = (entry?.characters ?? [])
+    .slice() // Create a shallow copy to avoid mutating the store/prop
+    .sort((a, b) => {
+      // 1. Safe access to roles with fallbacks to empty strings
+      const roleA = (a?.role ?? '').toLowerCase();
+      const roleB = (b?.role ?? '').toLowerCase();
 
-    // 2. Determine priority (0 for main roles, 1 for others)
-    // Uses optional chaining on mainRoles just in case it's not loaded
-    const aPriority = mainRoles?.includes(roleA) ? 0 : 1;
-    const bPriority = mainRoles?.includes(roleB) ? 0 : 1;
+      // 2. Determine priority (0 for main roles, 1 for others)
+      // Uses optional chaining on mainRoles just in case it's not loaded
+      const aPriority = mainRoles?.includes(roleA) ? 0 : 1;
+      const bPriority = mainRoles?.includes(roleB) ? 0 : 1;
 
-    // 3. Sort by priority
-    return aPriority - bPriority;
-  });
+      // 3. Sort by priority
+      return aPriority - bPriority;
+    });
   
   // -----------------------------
   // open modal by section
@@ -394,7 +410,7 @@ $: sortedCharacters = (entry?.characters ?? [])
 
               <div class="flex flex-wrap gap-1.5 md:gap-2 mt-2">
                 {#if entry.category}
-                <button class="btn badge-soft badge-outline badge-sm md:badge-md block break-all whitespace-normal line-clamp-2" title="category" on:click={() => openEdit('category')}>{entry.category}</button>
+                <button class="btn badge-soft badge-outline max-w-2/3 badge-sm block break-all whitespace-normal line-clamp-2 md:badge-md" title="category" on:click={() => openEdit('category')}>{entry.category}</button>
                 {/if}
                 {#if entry.dataType}
                 <div class="badge badge-dash badge-sm md:badge-md" title="dataType">{entry.dataType}</div>
@@ -408,7 +424,7 @@ $: sortedCharacters = (entry?.characters ?? [])
               </div>
 
               <!-- Rating -->
-              {#if entry.rating}
+              {#if entry.rating || entry.rating === 0}
                 <div>
                   <div class="rating rating-lg rating-half mt-2">
                     {#each Array.from({ length: 5 }, (_, starIndex) => starIndex + 1) as star}
@@ -522,7 +538,14 @@ $: sortedCharacters = (entry?.characters ?? [])
              npm install -D @tailwindcss/typography 
              plugins: [ require('@tailwindcss/typography')]
              -->
-            <div class="ml-2 break-words prose prose-sm max-w-none prose-p:my-1 prose-ul:my-0 prose-li:my-0 prose-h1:my-0 prose-h2:my-0">{@html descriptionHtml}</div>
+             <div bind:this={descEl} 
+              class="ml-2 break-words prose prose-sm max-w-none prose-p:my-1 prose-ul:my-0 prose-li:my-0  prose-h1:my-0 prose-h2:my-0 cursor-pointer {expanded ? '' : 'line-clamp-3'}" 
+              on:click={() => showToggle && (expanded = !expanded)} >
+              {@html descriptionHtml}</div>
+              {#if showToggle}
+                <button class="text-primary text-sm ml-2 mt-1 text-center" on:click={() => expanded = !expanded}>
+                {#if expanded}{@html Svg.upArrow}{:else}{@html Svg.downArrow}{/if}</button>
+              {/if}
           </div>
         </div>
       {/if}

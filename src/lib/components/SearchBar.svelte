@@ -80,7 +80,7 @@
       class="input input-bordered flex-1"
       bind:value={inputValue}
     />
-    <button class="btn px-[10px] btn-secondary btn-soft rounded-full" on:click={handleClose} aria-label="Close search">{@html Svg.closeCross}</button>
+    <button class="btn px-[10px] btn-outline text-bg-accent rounded-full" on:click={handleClose} aria-label="Close search">{@html Svg.closeCross}</button>
   </div>
   {#if $searchMode !== 'default'}
     <div class="text-xs text-info mt-2">

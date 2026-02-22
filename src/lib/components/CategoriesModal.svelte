@@ -72,13 +72,11 @@
 	onMount(() => { categories.load() });
 </script>
 
+	<!-- on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') dispatch('close');}}> -->
 {#if show}
 <div
 	class="fixed inset-0 z-150 flex bg-black/50" role="button" tabindex="0" aria-label="Close categories modal"
-	on:click={() => dispatch('close')}
-	on:keydown={(e) => {
-		if (e.key === 'Enter' || e.key === ' ') dispatch('close');
-	}}>
+	on:click={() => dispatch('close')}>
 	<div class="h-full w-96 bg-base-100 p-6 shadow-xl flex flex-col" on:click|stopPropagation role="document">
 		<h2 class="mb-6 text-2xl font-bold">Categories</h2>
 		<div class="flex-1 overflow-y-auto pr-1 border border-base-content/30 rounded-xl p-1 px-2">

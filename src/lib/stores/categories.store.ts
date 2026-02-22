@@ -20,9 +20,15 @@ function createCategoriesStore() {
     },
 
     rename: async (oldName: string, newName: string) => {
-        await dbService.renameCategory(oldName, newName);
-        const cats = await dbService.getAllCategories();
-        set(cats);
+      // 1️⃣ Rename category record
+      await dbService.renameCategoryRecord(oldName, newName);
+
+      // 2️⃣ Update entries using it
+      await dbService.renameCategory(oldName, newName);
+
+      // 3️⃣ Reload categories list
+      const cats = await dbService.getAllCategories();
+      set(cats);
     },
 
     remove: async (name: string) => {
