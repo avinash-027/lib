@@ -4,6 +4,7 @@
   import jsonStruct from '$lib/assets/jsonStruct.md?raw';
   import { marked } from 'marked';
   import { Svg } from '$lib/index';
+  import { dbService } from '$lib/services/db.service';
 
   import Alert from './Alert.svelte';
   import AutoBackupButton from './AutoBackupButton.svelte';
@@ -53,6 +54,22 @@
   let JSONmodal: HTMLDialogElement;
   function openJSONModal() { JSONmodal.showModal();}
   function closeJSONModal() { JSONmodal.close(); }
+
+  let deleteDialog: HTMLDialogElement;
+  function openDeleteDialog() {
+    deleteDialog.showModal();
+  }
+  function closeDeleteDialog() {
+    deleteDialog.close();
+  }
+  async function confirmDeleteDB() {
+    await dbService.clearDatabase();
+    closeDeleteDialog();
+    indexedDB.databases().then(dbs => {
+      dbs.forEach(db => indexedDB.deleteDatabase(db.name!));
+    });
+    location.reload();
+  }
 </script>
 
 <Alert {showAlert} message={alertMessage} />
@@ -86,11 +103,36 @@
           <li>
             <button on:click={openJSONModal} class="btn btn-md btn-ghost">JSON Format</button>
           </li>
+          <li>
+            <button class="btn btn-md btn-error btn-outline" on:click={openDeleteDialog} aria-label="Delete Database">
+              🗑️ Delete Database
+            </button>
+          </li>
         </ul>
         {#if importing}
         <div class="text-left p-4 gap-1"><span class="loading loading-bars loading-sm text-primary"></span>Importing<span class="loading loading-bars loading-sm text-primary"></span></div>
         {/if}
       </div>
+
+      <dialog bind:this={deleteDialog} class="modal"
+        on:click={(e) => {
+          if (e.target === deleteDialog) closeDeleteDialog();
+        }}>
+        <div class="modal-box max-w-md">
+          <h3 class="font-bold text-lg text-error">⚠ Confirm Deletion</h3>
+          <p class="py-4">This will permanently delete(IndexedDB Database):</p>
+          <ul class="list-disc list-inside text-sm opacity-80">
+            <li>All Entries</li>
+            <li>All Categories</li>
+            <li>All Settings</li>
+          </ul>
+          <p class="mt-4 text-sm text-error font-semibold">This action cannot be undone.</p>
+          <div class="modal-action">
+            <button class="btn btn-ghost" on:click={closeDeleteDialog}>Cancel</button>
+            <button class="btn btn-error" on:click={confirmDeleteDB}>Yes, Delete Everything</button>
+          </div>
+        </div>
+      </dialog>
 
       <!-- Modal -->
       <dialog bind:this={JSONmodal} class="modal"

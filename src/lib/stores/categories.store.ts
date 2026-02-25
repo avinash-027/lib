@@ -2,6 +2,9 @@
 import { writable } from 'svelte/store';
 import { dbService } from '$lib/services/db.service';
 
+import { entries } from './app.store';
+import { selectedCategory } from './app.store';
+
 function createCategoriesStore() {
   const { subscribe, set } = writable<string[]>(['All']);
 
@@ -20,13 +23,20 @@ function createCategoriesStore() {
     },
 
     rename: async (oldName: string, newName: string) => {
-      // 1️⃣ Rename category record
+      // Rename category record
       await dbService.renameCategoryRecord(oldName, newName);
 
-      // 2️⃣ Update entries using it
+      // Update entries using it
       await dbService.renameCategory(oldName, newName);
+      
+      // Reload entries store (IMPORTANT)
+      await entries.load();
 
-      // 3️⃣ Reload categories list
+      // Update selected category if it was the renamed one
+      selectedCategory.update(current =>
+        current === oldName ? newName : current
+      );
+      // Reload categories list
       const cats = await dbService.getAllCategories();
       set(cats);
     },

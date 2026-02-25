@@ -384,16 +384,16 @@ UI Layout
   <!-- Card Grid -->
   <!-- on:cardClick={(e) => openDetail(e.detail)} -->
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
-  <div class="flex-1 overflow-auto p-4">
+  <div class="flex-1 overflow-auto p-4 pt-2.5">
     {#if deleting}
-      <div class="flex items-center justify-center">
+      <div class="flex items-center justify-center bg-base-300 rounded-xl m-2">
         <span class="loading loading-dots loading-sm text-primary"></span>
         <span class="loading loading-ring loading-sm text-primary"></span>
         <span class="loading loading-dots loading-sm text-primary"></span>
       </div>
     {/if}
     {#if importing}
-      <div class="flex items-center justify-center"><span class="loading loading-bars loading-sm text-primary"></span></div>
+      <div class="flex items-center justify-center bg-base-300 rounded-xl m-2"><span class="loading loading-bars loading-sm text-primary"></span></div>
     {/if}
     <CardGrid
       entries={displayedEntries}
