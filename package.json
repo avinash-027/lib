@@ -41,10 +41,12 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"@svelte-put/swipeable": "^1.1.0",
 		"daisyui": "^5.5.17",
 		"dexie": "^4.3.0",
 		"idb": "^8.0.3",
 		"lozad": "^1.16.0",
-		"marked": "^17.0.1"
+		"marked": "^17.0.1",
+		"svelte-dnd-action": "^0.9.69"
 	}
 }

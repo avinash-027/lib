@@ -2,6 +2,7 @@
 // Use IndexedDB for storage
 import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
+import { deleteDB } from 'idb';
 
 // Import application-specific data type
 import type { LData } from '$lib/types/ldata';
@@ -27,6 +28,7 @@ interface Entry {
 interface Category {
   name: string;
   createdAt: string;
+  order: number;   // 👈 NEW
 }
 
 interface MyDB extends DBSchema {
@@ -117,17 +119,28 @@ class DatabaseService {
   private async initialize(): Promise<void> {
     this.db = await openDB<MyDB>('libdb', 1, {
       upgrade(db) {
+
+        // -------------------------
+        // Entries store
+        // -------------------------
         if (!db.objectStoreNames.contains('entries')) {
-        // id is the primary key. autoIncrement: true tells IndexedDB to generate it.
           const store = db.createObjectStore('entries', {
             keyPath: 'id',
             autoIncrement: true
           });
           store.createIndex('by-category', 'category');
         }
+
+        // -------------------------
+        // Categories store (WITH order)
+        // -------------------------
         if (!db.objectStoreNames.contains('categories')) {
           db.createObjectStore('categories', { keyPath: 'name' });
         }
+
+        // -------------------------
+        // Settings store
+        // -------------------------
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings');
         }
@@ -147,6 +160,24 @@ class DatabaseService {
   async getDB(): Promise<IDBPDatabase<MyDB>> {
     await this.ensureInitialized();
     return this.db!;
+  }
+
+  async clearDatabase(): Promise<void> {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+
+    await deleteDB('libdb', {
+      blocked() {
+        console.warn('Database deletion blocked — close other tabs.');
+      }
+    });
+
+    this.isInitialized = false;
+    this.initPromise = null;
+
+    console.log('🗑️ IndexedDB Database fully deleted');
   }
 
   // ----------------------------
@@ -210,22 +241,34 @@ class DatabaseService {
   // ----------------------------
   async getAllCategories(): Promise<string[]> {
     await this.ensureInitialized();
-    const tx = this.db!.transaction('categories', 'readonly');
-    const cats = await tx.objectStore('categories').getAll();
-    return ['All', ...cats.map(c => c.name).filter(c => c !== 'All')];
+
+    const cats = await this.db!
+      .transaction('categories', 'readonly')
+      .objectStore('categories')
+      .getAll();
+
+    cats.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    return ['All', ...cats.map(c => c.name)];
   }
 
   async addCategory(name: string): Promise<void> {
     await this.ensureInitialized();
     if (!name || name === 'All') return;
 
+    const existing = await this.getAllCategories();
+    const order = existing.length; // next position
+
     const tx = this.db!.transaction('categories', 'readwrite');
     await tx.objectStore('categories').put({
       name,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      order
     });
+
     await tx.done;
   }
+  
   async deleteCategory(name: string): Promise<void> {
     await this.ensureInitialized();
     if (name === 'All') return;
@@ -249,6 +292,22 @@ class DatabaseService {
     }
   }
 
+  async reorderCategories(orderedNames: string[]) {
+    await this.ensureInitialized();
+
+    const tx = this.db!.transaction('categories', 'readwrite');
+    const store = tx.objectStore('categories');
+
+    for (let i = 0; i < orderedNames.length; i++) {
+      const cat = await store.get(orderedNames[i]);
+      if (cat) {
+        cat.order = i;
+        await store.put(cat);
+      }
+    }
+
+    await tx.done;
+  }
   // ----------------------------
   // Entry,Category -Mutations
   // ----------------------------

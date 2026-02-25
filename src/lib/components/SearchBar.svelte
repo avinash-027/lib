@@ -69,6 +69,10 @@
     searchMode.set('default');
     show = false;
   }
+  function handleClear() {
+    inputValue = '';
+    focusInput();
+  }
 </script>
 
 <div class="bg-base-200 px-4 pt-3 pb-1 shadow-lg">
@@ -80,7 +84,17 @@
       class="input input-bordered flex-1"
       bind:value={inputValue}
     />
-    <button class="btn px-[10px] btn-outline text-bg-accent rounded-full" on:click={handleClose} aria-label="Close search">{@html Svg.closeCross}</button>
+    {#if inputValue?.trim()}
+      <!-- Clear text only -->
+      <button class="btn px-[10px] btn-outline text-bg-accent rounded-full" on:click={handleClear} aria-label="Clear search" >
+        {@html Svg.cleanSvg}
+      </button>
+    {:else}
+      <!-- Close/hide search -->
+      <button class="btn px-[10px] btn-outline text-bg-accent rounded-full" on:click={handleClose} aria-label="Close search" >
+        {@html Svg.closeCross}
+      </button>
+    {/if}
   </div>
   {#if $searchMode !== 'default'}
     <div class="text-xs text-info mt-2">

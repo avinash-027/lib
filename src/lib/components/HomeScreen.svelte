@@ -5,7 +5,8 @@
   import { searchQuery } from '$lib/stores/app.store';
   import { goto } from '$app/navigation';
   import { Svg } from '$lib/index';
-
+  import { tick } from 'svelte';
+  
   import { entries, filteredEntries, selectedCategory, gridCols } from '$lib/stores/app.store';
   import { categories } from '$lib/stores/categories.store';
   import { restoreAutoBackup } from '$lib/services/autoBackup.service';
@@ -198,7 +199,9 @@
   // -----------------------------
   let showCategoryDropdown = false;
   // Use the store instead in the template
-  $: categoryList = $categories.filter(c => c !== 'All');
+  // $: categoryList = $categories.filter(c => c !== 'All');
+  // safe fallback if $categories isn’t an array yet
+  $: categoryList = Array.isArray($categories) ? $categories.filter(c => c !== 'All') : [];
 
   async function moveSelectedToCategory(category: string) {
     for (const id of selectedEntries) {
@@ -252,6 +255,35 @@
     selectedEntries.clear();
     selectedEntries = new Set(selectedEntries); // trigger reactivity
   }
+
+  // Swipe Categories
+  // const allCats = ['All', ...categoryList];
+  // derive allCats reactively
+  $: allCats = ['All', ...categoryList];
+
+  async function scrollActiveTabIntoView() {
+    // let the DOM update first
+    await tick();
+
+    const tab = document.querySelector('.tab.tab-active');
+    if (tab) {
+      tab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+    }
+  }
+
+  function goToNextCategory() {
+    const idx = allCats.indexOf($selectedCategory);
+    const next = allCats[(idx + 1) % allCats.length];
+    selectedCategory.set(next);
+    scrollActiveTabIntoView();
+  }
+
+  function goToPrevCategory() {
+    const idx = allCats.indexOf($selectedCategory);
+    const prev = allCats[(idx - 1 + allCats.length) % allCats.length];
+    selectedCategory.set(prev);
+    scrollActiveTabIntoView();
+  }
 </script>
 
 <style>
@@ -284,7 +316,7 @@ UI Layout
         {@html Svg.search}
       </button>
       <div class="tooltip-bottom tooltip" data-tip="Open filters">
-      <button class="btn btn-square btn-ghost" aria-label="Open filters" 
+      <button class="btn btn-square btn-ghost hidden md:inline-block" aria-label="Open filters" 
         on:click={() => { 
           showFilter = !showFilter;
           selectionMode = false;
@@ -293,7 +325,7 @@ UI Layout
       </button>
       </div>
       <div class="tooltip-bottom tooltip" data-tip="Select entries">
-      <button class="btn btn-square btn-ghost" 
+      <button class="btn btn-square btn-ghost hidden md:inline-block" 
         on:click={() => {
           if (selectionMode) {
             selectedEntries.clear();
@@ -306,12 +338,60 @@ UI Layout
         {@html Svg.select}
       </button>
       </div>
-      <button
-        class="btn btn-square btn-ghost inline-block md:hidden" on:click={toggleGridCols} aria-label="Toggle grid columns" title="Toggle grid columns">
+      <!-- <button class="btn btn-square btn-ghost inline-block md:hidden" 
+        on:click={toggleGridCols} aria-label="Toggle grid columns" title="Toggle grid columns">
         {@html Svg.toggleGrid}
-      </button>
+      </button> -->
       <!-- Bottom Themes button -->
       <Themes dropdownDirection="dropdown-bottom dropdown-end"/>
+
+      <div class="dropdown dropdown-end inline-block md:hidden">
+        <button class="btn btn-square btn-ghost" aria-label="More options" tabindex="0"
+          >{@html Svg.dots3}</button
+        >
+        <ul tabindex="0" class="dropdown-content menu w-44 rounded-box bg-base-100 p-2 shadow">
+          <li>
+            <button
+              on:click={() => {
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+                showFilter = !showFilter;
+              }}>{@html Svg.filter}Filters</button
+            >
+          </li>
+          <li>
+            <button
+              on:click={() => {
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+                if (selectionMode) {
+                  selectedEntries.clear();
+                  selectedEntries = new Set(selectedEntries); // trigger reactivity
+                  showCategoryDropdown = false;
+                }
+                selectionMode = !selectionMode;
+              }}
+              aria-label="Select entries"
+            >
+              {@html Svg.select}Select Entries
+            </button>
+          </li>
+          <li>
+            <button
+              class="inline-block md:hidden"
+              on:click={() => {
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+                toggleGridCols();
+              }}
+              aria-label="Toggle grid columns">{@html Svg.toggleGrid} ToggleGrid</button
+            >
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -334,7 +414,7 @@ UI Layout
         <!-- Outline / inactive duplicate filter icon -->
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
           <rect x="4" y="4" width="16" height="16" stroke="currentColor" stroke-width="2" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h8" />
+          <path d="M3 3h18v18H3zM15 9l-6 6m0-6l6 6"/>
         </svg>
       {/if}
     </button>
@@ -384,23 +464,26 @@ UI Layout
   <!-- Card Grid -->
   <!-- on:cardClick={(e) => openDetail(e.detail)} -->
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
-  <div class="flex-1 overflow-auto p-4">
+  <div class="flex-1 overflow-auto p-4 pt-2.5">
     {#if deleting}
-      <div class="flex items-center justify-center">
+      <div class="flex items-center justify-center bg-base-300 rounded-xl m-2">
         <span class="loading loading-dots loading-sm text-primary"></span>
         <span class="loading loading-ring loading-sm text-primary"></span>
         <span class="loading loading-dots loading-sm text-primary"></span>
       </div>
     {/if}
     {#if importing}
-      <div class="flex items-center justify-center"><span class="loading loading-bars loading-sm text-primary"></span></div>
+      <div class="flex items-center justify-center bg-base-300 rounded-xl m-2"><span class="loading loading-bars loading-sm text-primary"></span></div>
     {/if}
     <CardGrid
       entries={displayedEntries}
       {selectionMode}
       {selectedEntries}
       gridCols={$gridCols}
+      selectedCat={$selectedCategory}
       on:toggleSelect={(e) => handleToggleSelect(e.detail)}
+      goToNextCategory={goToNextCategory}
+      goToPrevCategory={goToPrevCategory}
     />
   </div>
 </div>
