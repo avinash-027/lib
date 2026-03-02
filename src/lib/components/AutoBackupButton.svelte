@@ -2,7 +2,8 @@
   import Alert from './Alert.svelte';
   import {
     enableAutoBackup,
-    disableAutoBackup
+    disableAutoBackup,
+    requestNotificationPermission   
   } from '$lib/services/autoBackup.service';
 
   let enabled = localStorage.getItem('autoBackupEnabled') === 'true';
@@ -13,18 +14,31 @@
   async function toggle() {
     try {
       if (!enabled) {
+
+        // 🔔 Ask notification permission FIRST
+        const allowed = await requestNotificationPermission();
+
+        if (!allowed) {
+          message = 'Notification permission denied';
+          showAlert = true;
+          return;
+        }
+
+        // Then enable backup
         await enableAutoBackup();
         enabled = true;
         folderName = localStorage.getItem('autoBackupFolderName');
-        message = 'Auto backup enabled (12:00 AM & 12:00 PM)';
+        message = 'Auto backup enabled (12h reminder active)';
+
       } else {
         disableAutoBackup();
         enabled = false;
         folderName = null;
         message = 'Auto backup disabled';
       }
+
     } catch {
-			enabled = false; // force OFF if failed
+      enabled = false;
       message = 'Backup permission denied';
     }
 

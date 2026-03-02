@@ -150,7 +150,7 @@
 
       <div class="text-sm text-gray-500 disable">
 
-        <!-- <AutoBackupButton /> -->
+        <AutoBackupButton />
         <div class="divider"></div>
         <p class="font-semibold my-4">🤖 AI × <a href="https://github.com/avinash-027/" target="_blank" class="link link-primary no-underline">User-A027</a> 👨‍💻</p>
       </div>

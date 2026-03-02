@@ -303,11 +303,14 @@
       <h2 class="text-2xl font-bold">
         Edit <span class="text-info">{editSection}</span>
       </h2>
+      <div>
+      <button class="btn btn-primary btn-xs sm:btn-sm" on:click={handleSave} disabled={editSection === 'All' && (!title || !category)}>{@html Svg.select} </button>
       <button class="btn btn-square btn-ghost btn-sm" on:click={handleCancel} aria-label="Close modal">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </button>
+      </div>
     </div>
 
     <div class="p-2 md:p-6 space-y-4">
@@ -587,13 +590,13 @@
             </div>
           {/if}
 
-          <label class="floating-label mt-2 w-full"><span>Tags (comma separated)</span>
-          <input type="text" placeholder="Tags (comma separated)" class="input input-bordered w-full input-sm mb-2"
-            bind:value={selectedChapter._tagsText}/>
-          </label>
-          <label class="floating-label w-full"><span>Description</span>
+          <label class="mt-2 floating-label w-full"><span>Description</span>
           <textarea placeholder="description" class="textarea textarea-bordered w-full textarea-sm mb-2" 
             bind:value={selectedChapter.description}></textarea>
+          </label>
+          <label class="mt-2 floating-label w-full"><span>Tags (comma separated)</span>
+          <input type="text" placeholder="Tags (comma separated)" class="input input-bordered w-full input-sm mb-2"
+            bind:value={selectedChapter._tagsText}/>
           </label>
         </div>
       {/if}
@@ -604,17 +607,17 @@
       <!-- Left side add buttons -->
       <div class="flex gap-2">
         {#if editSection === 'All' || editSection === 'characters'}
-          <button class="btn btn-outline btn-sm" on:click={addCharacter}>+ Character </button>
+          <button class="btn btn-outline btn-xs sm:btn-sm" on:click={addCharacter}>+ Character </button>
         {/if}
 
         {#if editSection === 'All' || editSection === 'chapters'}
-          <button class="btn btn-outline btn-sm" on:click={addChapter}>+ Chapter </button>
+          <button class="btn btn-outline btn-xs sm:btn-sm" on:click={addChapter}>+ Chapter </button>
         {/if}
       </div>
       <!-- Right side actions -->
       <div class="flex gap-2">
-        <button class="btn btn-outline btn-sm text-error" on:click={handleCancel}>Cancel</button>
-        <button class="btn btn-primary btn-sm" on:click={handleSave} disabled={editSection === 'All' && (!title || !category)}>Save </button>
+        <button class="btn btn-outline btn-xs sm:btn-sm text-error" on:click={handleCancel}>Cancel</button>
+        <button class="btn btn-primary btn-xs sm:btn-sm" on:click={handleSave} disabled={editSection === 'All' && (!title || !category)}>Save </button>
       </div>
     </div>
   </div>

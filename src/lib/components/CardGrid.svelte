@@ -18,14 +18,12 @@
 
   const dispatch = createEventDispatcher<{
     toggleSelect: number;
+    cardClick: number;
   }>();
-  
-  // cardClick: number;
-  // dispatch('cardClick', id);
+
   function handleCardClick(id: number | undefined) {
     if (!selectionMode && id !== undefined) {
-      // Use the base path prefix here
-      goto(`${base}/detail/${id}`);
+      dispatch('cardClick', id);
     }
   }
 
@@ -82,61 +80,59 @@
     </div>
   </div>
 {:else}
-<div use:swipeable={{ direction: ['left','right'], threshold: '40%', followThrough: { duration: 300 } }} on:swipeend={onSwipeEnd} 
-  class="h-full animate-[flip_0\.6s_ease-in-out_forwards] motion-safe:animate-[flip_0\.6s_ease-in-out_forwards]">
-  <div class={`grid gap-2 ${colClasses[gridCols]} md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 scroll-smooth`}>
-    
-    {#each entries as entry (entry.id)}
-      <div class="relative">
-        <!-- Select Mode -->
-        {#if selectionMode}
-          <button type="button"
-            class="rounded-xl absolute inset-0 z-10 flex items-center justify-center 
-                   bg-black/30 cursor-pointer transition-all duration-200 border-2"
-            class:border-info={selectedEntries.has(entry.id)}
-            class:border-transparent={!selectedEntries.has(entry.id)}
-            on:click={(e) => {
-              e.stopPropagation();
-              toggleSelect(entry.id);
-            }}>
-            {#if selectedEntries.has(entry.id)}
-              <div class="w-12 h-12 flex items-center justify-center bg-info text-info-content rounded-full shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"  />
-                </svg>
-              </div>
-            {/if}
-          </button>
-        {/if}
-        <!-- Card Item -->
-        <button
-          class="group card bg-base-100 shadow-xl cursor-pointer hover:shadow-info/30 transition-[1px] w-full h-full transition duration-150 ease-in-out hover:-translate-y-1 hover:scale-102"
-          on:click={() => handleCardClick(entry.id)}>
-          <figure class="relative aspect-[3/4] bg-base-300">
-            {#if entry.coverImageUrl}
-              <img src={entry.coverImageUrl} alt={entry.title} class="w-full h-full object-cover lozad" use:lozadAction1 />
-            {:else}
-              <div class="w-full h-full flex items-center justify-center text-base-content/20">
-                {@html Svg.imgIcon}
-              </div>
-            {/if}
-            {#if entry.dataType}<span class="absolute bottom-0 left-0 rounded-se-md text-[.7em] md:text-sm bg-base-200/85 px-1 py-0">{entry.dataType}</span>{/if}
-          </figure>
-
-          {#if selectedCat.trim().toLowerCase() === 'all' && entry.category && entry.category.trim().toLowerCase() !== "all"}
-          <span class="z-11 absolute -top-[5px] right-1 rounded-full text-[.6em] w-1/2 font-semibold px-1 py-0 line-clamp-1 break-words md:text-sm bg-info text-base-300 group-hover:hidden">
-            {entry.category}</span>
+<!-- <div use:swipeable={{ direction: ['left','right'], threshold: '40%', followThrough: { duration: 300 } }} on:swipeend={onSwipeEnd}  -->
+<div class={`grid gap-2 ${colClasses[gridCols]} md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 overflow-x-auto scroll-smooth py-2 px-2`}>
+  
+  {#each entries as entry (entry.id)}
+    <div class="relative">
+      <!-- Select Mode -->
+      {#if selectionMode}
+        <button type="button"
+          class="rounded-xl absolute inset-0 z-10 flex items-center justify-center 
+                 bg-black/30 cursor-pointer transition-all duration-200 border-2"
+          class:border-info={selectedEntries.has(entry.id)}
+          class:border-transparent={!selectedEntries.has(entry.id)}
+          on:click={(e) => {
+            e.stopPropagation();
+            toggleSelect(entry.id);
+          }}>
+          {#if selectedEntries.has(entry.id)}
+            <div class="w-12 h-12 flex items-center justify-center bg-info text-info-content rounded-full shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"  />
+              </svg>
+            </div>
           {/if}
-          <div class="card-body p-2">
-            {#if entry.rating !== null && entry.rating > 0}
-            <span class="absolute top-1 left-1 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
-            {/if}
-            <div class="card-title text-xs sm:text-sm line-clamp-2">{entry.title}</div>
-          </div>
         </button>
-      </div>
-    {/each}
-  </div>
+      {/if}
+      <!-- Card Item -->
+      <button
+        class="group card bg-base-100 shadow-xl cursor-pointer hover:shadow-info/30 transition-[1px] w-full h-full transition duration-150 ease-in-out hover:-translate-y-1 hover:scale-102"
+        on:click={() => handleCardClick(entry.id)}>
+        <figure class="relative aspect-[3/4] bg-base-300">
+          {#if entry.coverImageUrl}
+            <img src={entry.coverImageUrl} alt={entry.title} class="w-full h-full object-cover lozad" use:lozadAction1 />
+          {:else}
+            <div class="w-full h-full flex items-center justify-center text-base-content/20">
+              {@html Svg.imgIcon}
+            </div>
+          {/if}
+          {#if entry.dataType}<span class="absolute bottom-0 left-0 rounded-se-md text-[.7em] md:text-sm bg-base-200/85 px-1 py-0">{entry.dataType}</span>{/if}
+        </figure>
+
+        {#if selectedCat.trim().toLowerCase() === 'all' && entry.category && entry.category.trim().toLowerCase() !== "all"}
+        <span class="z-11 absolute -top-[5px] right-1 rounded-full text-[.6em] w-1/2 font-semibold px-1 py-0 line-clamp-1 break-words sm:text-sm bg-info text-base-300 group-hover:hidden">
+          {entry.category}</span>
+        {/if}
+        <div class="card-body p-2">
+          {#if entry.rating !== null && entry.rating > 0}
+          <span class="absolute top-1 left-1 rounded-2xl text-xs md:text-sm bg-info text-base-300 px-1 py-0 font-semibold">{entry.rating}</span>
+          {/if}
+          <div class="card-title text-xs sm:text-sm line-clamp-2">{entry.title}</div>
+        </div>
+      </button>
+    </div>
+  {/each}
 </div>
 {/if}
 <!-- rotate-270 origin-right -->

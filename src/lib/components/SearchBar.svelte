@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { Svg } from '$lib';
   import { searchQuery, searchMode } from '$lib/stores/app.store';
+  import { get } from 'svelte/store';
   import { tick } from 'svelte';
   import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
 
   export let show = false;
 
   let inputValue = '';
   let inputEl: HTMLInputElement;
-  type SearchMode = 'default' | 'a' | 't' | 'b' | 'c' | 'd';
+  // Only these modes are allowed
+  type SearchMode = 'default' | 'b' | 'c' | 'd';
 
   let initialized = false;
+  
+  import { filteredEntries } from '$lib/stores/app.store';
+
+  let matchedCount = 0;
+
+  // Subscribe reactively
+  $: filteredEntries.subscribe(entries => {
+    matchedCount = entries.length;
+  });
 
   onMount(async () => {
     // 1. Get current values from the store
@@ -38,23 +48,22 @@
      tick().then(() => inputEl.focus());
   }
 
-  // 4. Update the store ONLY after initialization
+  // Update store only after initialization
   $: if (initialized) {
-    const raw = inputValue.trim();
-    const lower = raw.toLowerCase();
+    const raw = inputValue.trim().toLowerCase();
 
-    // Your existing logic...
-    if (lower.startsWith('a:')) {
-      searchMode.set('a');
-      searchQuery.set(raw.slice(2));
-    } else if (lower.startsWith('t:')) {
-      searchMode.set('t');
-      searchQuery.set(raw.slice(2));
-    } 
-    // ... add your other else ifs ...
-    else {
+    if (raw.startsWith('b:')) {
+      searchMode.set('b');
+      searchQuery.set(inputValue.slice(2).trim());
+    } else if (raw.startsWith('d:')) {
+      searchMode.set('d');
+      searchQuery.set(inputValue.slice(2).trim());
+    } else if (raw.startsWith('c:')) {
+      searchMode.set('c');
+      searchQuery.set(inputValue.slice(2).trim());
+    } else {
       searchMode.set('default');
-      searchQuery.set(raw);
+      searchQuery.set(inputValue.trim());
     }
   }
 
@@ -71,7 +80,8 @@
   }
   function handleClear() {
     inputValue = '';
-    focusInput();
+    // focusInput()
+    tick().then(() => inputEl.focus());
   }
 </script>
 
@@ -80,7 +90,7 @@
     <input
       bind:this={inputEl}
       type="text"
-      placeholder="Search ('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType)"
+      placeholder="Search ('b:' badges, 'd:' dataType(lib, md, db), 'c:' category)"
       class="input input-bordered flex-1"
       bind:value={inputValue}
     />
@@ -96,13 +106,15 @@
       </button>
     {/if}
   </div>
+  {#if inputValue?.trim()}
+    <div class="text-xs text-warning mt-2">Items matched: {matchedCount}</div>
+  {/if}
   {#if $searchMode !== 'default'}
     <div class="text-xs text-info mt-2">
       Searching in:
-      {#if $searchMode === 'a'} alternative titles <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
-      {#if $searchMode === 't'} tags <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
-      {#if $searchMode === 'b'} badges <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
-      {#if $searchMode === 'c'} characters <br>('a:' altTitles, 't:' tags, 'b:' badges, 'c:' characters, 'd:' dataType){/if}
+      {#if $searchMode === 'b'} badges <br>('b:' badges, 'd:' dataType(lib, md, db), 'c:' category){/if}
+      {#if $searchMode === 'c'} characters <br>('b:' badges, 'd:' dataType(lib, md, db), 'c:' category){/if}
+      {#if $searchMode === 'd'} badges <br>('b:' badges, 'd:' dataType(lib, md, db), 'c:' category){/if}
     </div>
   {/if}
 </div>

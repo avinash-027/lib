@@ -469,7 +469,12 @@ class DatabaseService {
       // New Entry
       if (!existing) {
         const { id, ...withoutId } = incoming;
-        const newId = await this.addEntry({ ...withoutId, dataType: incoming.dataType.trim() || 'Lib', category: incoming.category.trim() || "All" });
+        const newId = await this.addEntry({
+          ...withoutId,
+          dataType: incoming.dataType?.trim() || "Lib",
+          category: incoming.category?.trim() || "All"
+        });
+        // const newId = await this.addEntry({ ...withoutId, dataType: incoming.dataType.trim() || 'Lib', category: incoming.category.trim() || "All" });
         fingerprintMap.set(fp, { ...incoming, id: newId });
         continue;
       }
@@ -579,7 +584,7 @@ class DatabaseService {
 
         for (const char of entry.characters) {
           md.push(
-            `| ${char.name} | <img src="${char.image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role ?? " "} | ${char.description.replace(/^_+/, "") ?? " "} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
+            `| ${char.name} | <img src="${char.image}" width="100" style="aspect-ratio:1/1;object-fit:cover;" /> | ${char.role ?? " "} | ${char.description ?? " "} |${(char.tags ?? []).join(',')} |${(char.alternativeNames ?? []).join(',')} |`
           );
         }
       } else {

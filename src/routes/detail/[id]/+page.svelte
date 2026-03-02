@@ -388,7 +388,7 @@
             </div>
 
             <div class="flex-1 min-w-0 flex flex-col justify-center">
-              <h1 use:copyOn={entry?.title} class="text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
+              <h1 use:copyOn={entry?.title} class="text-xl md:text-2xl font-bold mb-2 whitespace-pre-wrap break-words" title="Title">{entry.title}</h1>
 
               {#if entry.slug}
               <p use:copyOn={entry.slug} class="text-sm text-base-content/70 mb-2 whitespace-pre-wrap break-words hidden md:inline-block">{entry.slug}</p>
@@ -403,20 +403,20 @@
               {#if (entry.badges ?? []).length > 0}
                 <div class="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4" title="badges">
                   {#each entry.badges as badge}
-                    <span use:copyOn={badge} class="badge badge-primary badge-sm md:badge-md">{badge}</span>
+                    <span use:copyOn={badge} class="rounded-xl badge badge-primary badge-sm md:badge-md">{badge}</span>
                   {/each}
                 </div>
               {/if}
 
-              <div class="flex flex-wrap gap-1.5 md:gap-2 mt-2">
+              <div class="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4">
                 {#if entry.category}
-                <button class="btn badge-soft badge-outline max-w-2/3 badge-sm block break-all whitespace-normal line-clamp-2 md:badge-md" title="category" on:click={() => openEdit('category')}>{entry.category}</button>
+                <button class="rounded-xl btn badge-soft badge-outline max-w-2/3 badge-sm block break-all whitespace-normal line-clamp-2 md:badge-md" title="category" on:click={() => openEdit('category')}>{entry.category}</button>
                 {/if}
                 {#if entry.dataType}
-                <div class="badge badge-dash badge-sm md:badge-md" title="dataType">{entry.dataType}</div>
+                <div class="rounded-xl badge badge-dash badge-sm md:badge-md" title="dataType">{entry.dataType}</div>
                 {/if}
                 {#if entry.rating}
-                <span class="text-xm badge badge-sm badge-ghost gap-0">
+                <span class="rounded-xl text-xm badge badge-sm badge-ghost gap-0">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="w-3 h-3 stroke-current fill-base-content"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.122 6.53a1 1 0 00.95.69h6.866c.969 0 1.371 1.24.588 1.81l-5.556 4.04a1 1 0 00-.364 1.118l2.122 6.53c.3.921-.755 1.688-1.54 1.118l-5.556-4.04a1 1 0 00-1.176 0l-5.556 4.04c-.784.57-1.838-.197-1.539-1.118l2.122-6.53a1 1 0 00-.364-1.118L.47 11.957c-.783-.57-.38-1.81.588-1.81h6.866a1 1 0 00.95-.69l2.122-6.53z"/></svg>
                   {RatingLevel[rating]}
                 </span>
@@ -425,8 +425,7 @@
 
               <!-- Rating -->
               {#if entry.rating || entry.rating === 0}
-                <div>
-                  <div class="rating rating-lg rating-half mt-2">
+                  <div class="rating rating-lg rating-half mt-2.5">
                     {#each Array.from({ length: 5 }, (_, starIndex) => starIndex + 1) as star}
                       <!-- half star -->
                       <input type="radio" name="rating" value={star * 2 - 1} checked={rating === star * 2 - 1} 
@@ -438,7 +437,6 @@
                         aria-label={`${star} star`}/>
                     {/each}
                   </div>
-                </div>
               {/if}
             </div>
           </div>
@@ -465,7 +463,7 @@
           <div class="card-body p-5 md:p-6">
             <h2 class="card-title">Characters
               <button class="btn btn-ghost btn-sm ml-auto" aria-label="Edit Characters" on:click={() => openEdit('characters')}>{@html Svg.edit} </button>
-              <button class="btn btn-ghost btn-sm" on:click={openNewCharacter}> {@html Svg.add} </button>
+              <button class="btn btn-ghost btn-sm bg-base-200 rounded-full" on:click={openNewCharacter}> {@html Svg.add} </button>
             </h2>
 
             <div class="flex gap-2 md:gap-4 overflow-x-auto pb-1 scrollbar-hide">
@@ -498,7 +496,7 @@
                   <li class="list-row items-center py-1">
                   <div class="flex flex-col md:flex-row md:gap-1">
                   <button class="h-10 w-10 btn btn-soft btn-outline btn-sm border border-b-1 border-base-300 rounded-b-none rounded-t-xl md:rounded-xl" on:click={()=>openSingleCharacter(character)}>{@html Svg.edit} </button>
-                  <button class="h-10 w-10 btn btn-soft btn-outline btn-sm border border-1 border-base-300 rounded-t-none rounded-b-xl md:rounded-xl" on:click={()=>removeCharacter(character)}>{@html Svg.delete} </button>
+                  <button class="h-10 w-10 btn btn-soft btn-outline btn-sm text-error border border-1 border-base-300 rounded-t-none rounded-b-xl md:rounded-xl" on:click={()=>removeCharacter(character)}>{@html Svg.delete} </button>
                   </div>
                   <div use:copyOn={character.name} class="p-2 w-full bg-base-200 rounded-md text-xs text-left space-y-1 text-info">
                     <div class="break-all"><span class="font-semibold">Name: </span> <span class="text-success">{character.name}</span></div>
@@ -556,8 +554,8 @@
           <div class="card-body p-3 md:p-6" bind:this={chapterContainer}>
             <h2 class="card-title ml-1">Chapters
               <button class="btn btn-ghost btn-sm ml-auto" on:click = {() => openEdit('chapters')}> {@html Svg.edit} </button>
-              <button class="btn btn-ghost btn-sm" on:click={openNewChapter}> {@html Svg.add} </button>
-              <button class="btn btn-ghost btn-sm rounded-full" on:click={removeChapters} 
+              <button class="btn btn-ghost btn-sm bg-base-200 rounded-full" on:click={openNewChapter}> {@html Svg.add} </button>
+              <button class="btn btn-ghost btn-sm rounded-full text-error" on:click={removeChapters} 
               class:text-base-300={chapterDeleteMode} class:bg-error={chapterDeleteMode}> {@html Svg.delete} </button>
             </h2>
 
@@ -567,7 +565,7 @@
                 <div class="grid grid-cols-[15vw_2fr_3fr] md:grid-cols-[7vw_1fr_2fr] gap-4 px-4 py-3 font-semibold bg-base-200 rounded-t-lg">
                   <div>Chapter</div>
                   <div>Characters</div>
-                  <div>Tags</div>
+                  <div>Tags/Description</div>
                 </div>
 
                 <!-- Rows -->
@@ -581,22 +579,29 @@
                       class:bg-base-300={chapterDeleteMode}> 
 
                         <div class="font-semibold break-words" class:opacity-70={chapterDeleteMode}>{row.chapterSE}</div>
-                        <div class="break-all" class:opacity-70={chapterDeleteMode}>{row.characters}</div> 
+                        <div class="break-words" class:opacity-70={chapterDeleteMode}>{row.characters}</div> 
+                        
                         {#if (row.tags ?? []).length > 0}
                           <div class="flex flex-wrap justify-start content-start gap-1" class:opacity-70={chapterDeleteMode}>
                             {#each row.tags as tag}
                               <span class="bg-base-300/70 rounded-lg px-1 break-all">{tag}</span>
                             {/each}
                           </div>
+                        {:else}
+                        <span class="ml-1 break-words inline prose prose-sm prose-neutral prose-p:m-0 prose-strong:inline prose-em:inline prose-code:inline">
+                            {@html mdInline(row.description)}
+                        </span>
                         {/if}
-                        {#if chapterDeleteMode}<button class="absolute top-1 md:top-2 right-2 btn btn-xs md:btn-sm btn-circle btn-error z-10" on:click|stopPropagation={() => removeSingleChapter(row.chapterSE)} > ✕ </button>
+
+                        {#if chapterDeleteMode}
+                        <button class="absolute top-1 md:top-2 right-2 btn btn-xs md:btn-sm btn-circle btn-error z-10" on:click|stopPropagation={() => removeSingleChapter(row.chapterSE)} > ✕ </button>
                         {/if}
 
                       </div>
                     </div>
 
                     <div>
-                      {#if row.description}
+                      {#if row.description && (row.tags ?? []).length > 0}
                         <div class="p-1 text-sm text-base-content/70 bg-base-200/50 border border-base-content/10 border-t-0 rounded-b-lg">
                           <span class="ml-2 text-base-content/60">
                             ↳ <span class="font-semibold">Description:</span>
@@ -609,6 +614,13 @@
                     </div>
                   </div>
                 {/each}
+              {#if (sortedRows ?? []).length > 4}
+                <div class="flex justify-center">
+                  <button class="btn btn-ghost btn-sm w-2/3 bg-base-100 rounded-full border border-info/20 my-2" on:click={openNewChapter} >
+                    {@html Svg.add}
+                  </button>
+                </div>
+              {/if}
               </div>
             </div>
           </div>

@@ -3,6 +3,47 @@ import { dbService } from '$lib/services/db.service';
 const ENABLE_KEY = 'autoBackupEnabled';
 const HANDLE_KEY = 'autoBackupDirHandle';
 const FOLDER_NAME_KEY = 'autoBackupFolderName';
+const LAST_REMINDER_KEY = 'lastBackupReminder';
+
+const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+/** Ask user for notification permission */
+export async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported');
+    return false;
+  }
+
+  if (Notification.permission === 'granted') return true;
+
+  const permission = await Notification.requestPermission();
+  return permission === 'granted';
+}
+
+/** Show backup reminder */
+export function showBackupReminder() {
+  if (!('Notification' in window)) return;
+
+  if (Notification.permission !== 'granted') return;
+
+  new Notification('📁 Backup Reminder', {
+    body: 'Open the app to run your library backup.',
+    icon: '/icon-192.png' // optional (PWA icon)
+  });
+
+  localStorage.setItem(LAST_REMINDER_KEY, Date.now().toString());
+}
+
+export function checkBackupReminder() {
+  if (localStorage.getItem(ENABLE_KEY) !== 'true') return;
+
+  const lastReminder = Number(localStorage.getItem(LAST_REMINDER_KEY) || 0);
+  const now = Date.now();
+
+  if (now - lastReminder > TWELVE_HOURS) {
+    showBackupReminder();
+  }
+}
 
 let timeoutId: number | null = null;
 

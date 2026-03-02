@@ -74,12 +74,15 @@
 
   onMount(async () => {
     await loadEntries();
-
     restoreAutoBackup();
 
-    // Restore last selected category from localStorage
     const savedCategory = localStorage.getItem('selectedCategory');
-    if (savedCategory) selectedCategory.set(savedCategory);
+    if (savedCategory) {
+      selectedCategory.set(savedCategory);
+    }
+
+    await tick();
+    scrollActiveTabIntoView();
   });
 
   // -----------------------------
@@ -261,6 +264,16 @@
   // derive allCats reactively
   $: allCats = ['All', ...categoryList];
 
+  // scroll when both selectedCategory AND categoryList are ready
+  $: if ($selectedCategory && categoryList.length > 0) {
+    tick().then(() => {
+      const tab = document.querySelector('.tab.tab-active');
+      if (tab) {
+        tab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+      }
+    });
+  }
+
   async function scrollActiveTabIntoView() {
     // let the DOM update first
     await tick();
@@ -275,15 +288,35 @@
     const idx = allCats.indexOf($selectedCategory);
     const next = allCats[(idx + 1) % allCats.length];
     selectedCategory.set(next);
-    scrollActiveTabIntoView();
+    // scrollActiveTabIntoView();
   }
 
   function goToPrevCategory() {
     const idx = allCats.indexOf($selectedCategory);
     const prev = allCats[(idx - 1 + allCats.length) % allCats.length];
     selectedCategory.set(prev);
-    scrollActiveTabIntoView();
+    // scrollActiveTabIntoView();
   }
+
+  import { afterNavigate } from '$app/navigation';
+
+  // -----------------------------
+  // Save scroll position
+  // ----------------------------- 
+  let scrollContainer: HTMLDivElement;
+  let savedScroll = 0;
+
+  function saveScroll() {
+    savedScroll = scrollContainer?.scrollTop || 0;
+    sessionStorage.setItem('home-scroll', String(savedScroll));
+  }
+
+  afterNavigate(() => {
+    const saved = sessionStorage.getItem('home-scroll');
+    if (saved && scrollContainer) {
+      scrollContainer.scrollTop = Number(saved);
+    }
+  });
 </script>
 
 <style>
@@ -316,7 +349,7 @@ UI Layout
         {@html Svg.search}
       </button>
       <div class="tooltip-bottom tooltip" data-tip="Open filters">
-      <button class="btn btn-square btn-ghost hidden md:inline-block" aria-label="Open filters" 
+      <button class="btn btn-square btn-ghost hidden sm:inline-block" aria-label="Open filters" 
         on:click={() => { 
           showFilter = !showFilter;
           selectionMode = false;
@@ -325,7 +358,7 @@ UI Layout
       </button>
       </div>
       <div class="tooltip-bottom tooltip" data-tip="Select entries">
-      <button class="btn btn-square btn-ghost hidden md:inline-block" 
+      <button class="btn btn-square btn-ghost hidden sm:inline-block" 
         on:click={() => {
           if (selectionMode) {
             selectedEntries.clear();
@@ -338,14 +371,14 @@ UI Layout
         {@html Svg.select}
       </button>
       </div>
-      <!-- <button class="btn btn-square btn-ghost inline-block md:hidden" 
+      <button class="btn btn-square btn-ghost inline-block md:hidden" 
         on:click={toggleGridCols} aria-label="Toggle grid columns" title="Toggle grid columns">
         {@html Svg.toggleGrid}
-      </button> -->
+      </button>
       <!-- Bottom Themes button -->
       <Themes dropdownDirection="dropdown-bottom dropdown-end"/>
 
-      <div class="dropdown dropdown-end inline-block md:hidden">
+      <div class="dropdown dropdown-end inline-block sm:hidden">
         <button class="btn btn-square btn-ghost" aria-label="More options" tabindex="0"
           >{@html Svg.dots3}</button
         >
@@ -407,14 +440,14 @@ UI Layout
       {#if showUniqueOnly}
         <!-- Filled / active duplicate filter icon -->
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4z" />
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8" />
-        </svg>
+          <rect x="4" y="4" width="16" height="16" stroke="currentColor" stroke-width="2" />
+          <path d="M3 3h18v18H3zM15 9l-6 6m0-6l6 6"/>
+        </svg><span class="text-sm">{displayedEntries.length}</span>
       {:else}
         <!-- Outline / inactive duplicate filter icon -->
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
-          <rect x="4" y="4" width="16" height="16" stroke="currentColor" stroke-width="2" />
-          <path d="M3 3h18v18H3zM15 9l-6 6m0-6l6 6"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8" />
         </svg>
       {/if}
     </button>
@@ -424,7 +457,9 @@ UI Layout
     </button>
 
     {#each categoryList as cat}
-      <button class="tab" class:tab-active={$selectedCategory === cat} on:click={() => selectedCategory.set(cat)} >
+      <button class="tab" class:tab-active={$selectedCategory === cat} on:click={() => {
+        selectedCategory.set(cat);scrollActiveTabIntoView();
+      }} >
         <div class="indicator">
           <span class="indicator-item bg-base-100 text-xs rounded-3xl px-1.5 py-0.5 -top-1">{$entries.filter(e => e.category === cat).length}</span>
           <div class="z-10">{cat}</div>
@@ -464,7 +499,7 @@ UI Layout
   <!-- Card Grid -->
   <!-- on:cardClick={(e) => openDetail(e.detail)} -->
   <!-- on:cardClick={(e) => goto(`/detail/${e.detail}`)}  -->
-  <div class="flex-1 overflow-auto p-4 pt-2.5">
+  <div bind:this={scrollContainer} class="flex-1 overflow-auto py-4 px-1 sm:px-2 pt-2.5">
     {#if deleting}
       <div class="flex items-center justify-center bg-base-300 rounded-xl m-2">
         <span class="loading loading-dots loading-sm text-primary"></span>
@@ -481,6 +516,7 @@ UI Layout
       {selectedEntries}
       gridCols={$gridCols}
       selectedCat={$selectedCategory}
+      on:cardClick={(e) => {saveScroll();goto(`/detail/${e.detail}`);}}
       on:toggleSelect={(e) => handleToggleSelect(e.detail)}
       goToNextCategory={goToNextCategory}
       goToPrevCategory={goToPrevCategory}
